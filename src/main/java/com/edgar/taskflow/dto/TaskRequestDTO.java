@@ -21,4 +21,7 @@ public class TaskRequestDTO {
     
 	@NotNull
 	private LocalDate dueDate;
+	
+	@NotNull
+	private Long userId;
 }
