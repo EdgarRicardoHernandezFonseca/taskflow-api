@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
+import com.edgar.taskflow.entity.Role;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.service.UserService;
@@ -23,7 +24,7 @@ public class UserServiceImpl implements UserService {
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(request.getPassword()) // luego encriptamos
-                .role("USER")
+                .role(Role.USER)
                 .createdAt(LocalDateTime.now())
                 .build();
 

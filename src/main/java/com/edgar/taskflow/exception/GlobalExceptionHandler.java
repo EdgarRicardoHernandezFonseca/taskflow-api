@@ -7,6 +7,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.http.ResponseEntity;
+import com.edgar.taskflow.exception.ResourceNotFoundException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 	
@@ -22,4 +25,9 @@ public class GlobalExceptionHandler {
 
         return errors;
     }
+	
+	@ExceptionHandler(ResourceNotFoundException.class)
+	public ResponseEntity<?> handleResourceNotFound(ResourceNotFoundException ex) {
+	    return ResponseEntity.status(404).body(ex.getMessage());
+	}
 }

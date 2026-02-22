@@ -13,6 +13,7 @@ import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.service.TaskService;
 import com.edgar.taskflow.dto.TaskRequestDTO;
 import com.edgar.taskflow.dto.TaskResponseDTO;
+import com.edgar.taskflow.exception.ResourceNotFoundException;
 
 @Service
 @RequiredArgsConstructor
@@ -61,5 +62,53 @@ public class TaskServiceImpl implements TaskService {
                         .createdAt(task.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
+    }
+    
+    @Override
+    public TaskResponseDTO getTaskById(Long id) {
+
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+
+        return TaskResponseDTO.builder()
+                .id(task.getId())
+                .title(task.getTitle())
+                .description(task.getDescription())
+                .status(task.getStatus())
+                .dueDate(task.getDueDate())
+                .createdAt(task.getCreatedAt())
+                .build();
+    }
+    
+    @Override
+    public TaskResponseDTO updateTask(Long id, TaskRequestDTO request) {
+
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+
+        task.setTitle(request.getTitle());
+        task.setDescription(request.getDescription());
+        task.setStatus(request.getStatus());
+        task.setDueDate(request.getDueDate());
+
+        Task updatedTask = taskRepository.save(task);
+
+        return TaskResponseDTO.builder()
+                .id(updatedTask.getId())
+                .title(updatedTask.getTitle())
+                .description(updatedTask.getDescription())
+                .status(updatedTask.getStatus())
+                .dueDate(updatedTask.getDueDate())
+                .createdAt(updatedTask.getCreatedAt())
+                .build();
+    }
+    
+    @Override
+    public void deleteTask(Long id) {
+
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+
+        taskRepository.delete(task);
     }
 }
