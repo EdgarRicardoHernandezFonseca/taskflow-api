@@ -53,4 +53,15 @@ public class JwtService {
                 .getBody();
         return resolver.apply(claims);
     }
+    
+    public String generateRefreshToken(User user) {
+        return Jwts.builder()
+                .setSubject(user.getUsername())
+                .claim("role", user.getRole().name())
+                .claim("type", "refresh")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 7))
+                .signWith(getSignKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
 }

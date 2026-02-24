@@ -1,6 +1,9 @@
 package com.edgar.taskflow.service.impl;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,7 +29,10 @@ public class TaskServiceImpl implements TaskService {
 	@Override
 	public TaskResponseDTO createTask(TaskRequestDTO request) {
 
-	    User user = userRepository.findById(request.getUserId())
+	    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+	    String username = auth.getName();
+
+	    User user = userRepository.findByUsername(username)
 	            .orElseThrow(() -> new RuntimeException("User not found"));
 
 	    Task task = Task.builder()
@@ -49,6 +55,7 @@ public class TaskServiceImpl implements TaskService {
 	            .createdAt(savedTask.getCreatedAt())
 	            .build();
 	}
+	
     @Override
     public List<TaskResponseDTO> getAllTasks() {
         return taskRepository.findAll()
@@ -110,5 +117,18 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
         taskRepository.delete(task);
+    }
+    
+    public List<Task> getTasksForCurrentUser() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+
+        if (auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return taskRepository.findAll();
+        }
+
+        return taskRepository.findByUserUsername(username);
     }
 }

@@ -6,8 +6,10 @@ import java.util.List;
 import com.edgar.taskflow.service.TaskService;
 import com.edgar.taskflow.dto.TaskRequestDTO;
 import com.edgar.taskflow.dto.TaskResponseDTO;
+
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 
 @RestController
@@ -40,6 +42,7 @@ public class TaskController {
         return ResponseEntity.ok(taskService.updateTask(id, request));
     }
     
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
 

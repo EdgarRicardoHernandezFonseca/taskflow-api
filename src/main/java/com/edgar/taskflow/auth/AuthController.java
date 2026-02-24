@@ -10,15 +10,19 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
-	
-	private final UserRepository userRepository;
+
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-
+    private final AuthenticationManager authenticationManager;
+    
     @PostMapping("/register")
     public String register(@RequestBody AuthRequest request) {
 
@@ -38,15 +42,42 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@RequestBody AuthRequest request) {
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()
+                )
+        );
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
-        }
+        User user = userRepository
+                .findByUsername(request.getUsername())
+                .orElseThrow();
 
-        String token = jwtService.generateToken(user);
+        String accessToken = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
 
-        return new AuthResponse(token);
+        return new AuthResponse(
+                accessToken,
+                refreshToken,
+                user.getUsername()
+        );
+    }
+
+    @PostMapping("/refresh")
+    public AuthResponse refresh(@RequestBody RefreshRequest request) {
+
+        String username = jwtService.extractUsername(request.getRefreshToken());
+
+        User user = userRepository
+                .findByUsername(username)
+                .orElseThrow();
+
+        String newAccessToken = jwtService.generateToken(user);
+
+        return new AuthResponse(
+                newAccessToken,
+                request.getRefreshToken(),
+                user.getUsername()
+        );
     }
 }
