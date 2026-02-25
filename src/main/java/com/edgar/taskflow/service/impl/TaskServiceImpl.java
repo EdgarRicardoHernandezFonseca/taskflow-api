@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,6 +18,11 @@ import com.edgar.taskflow.service.TaskService;
 import com.edgar.taskflow.dto.TaskRequestDTO;
 import com.edgar.taskflow.dto.TaskResponseDTO;
 import com.edgar.taskflow.exception.ResourceNotFoundException;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
@@ -119,6 +125,11 @@ public class TaskServiceImpl implements TaskService {
         taskRepository.delete(task);
     }
     
+    @Override
+    public Page<Task> getTasks(Pageable pageable) {
+        return taskRepository.findAll(pageable);
+    }
+    
     public List<Task> getTasksForCurrentUser() {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -131,4 +142,6 @@ public class TaskServiceImpl implements TaskService {
 
         return taskRepository.findByUserUsername(username);
     }
+    
+   
 }

@@ -3,6 +3,8 @@ package com.edgar.taskflow.auth;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.entity.Role;
 import com.edgar.taskflow.repository.UserRepository;
+import com.edgar.taskflow.security.BlacklistedToken;
+import com.edgar.taskflow.security.BlacklistedTokenRepository;
 import com.edgar.taskflow.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +24,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
     
     @PostMapping("/register")
     public String register(@RequestBody AuthRequest request) {
@@ -79,5 +82,20 @@ public class AuthController {
                 request.getRefreshToken(),
                 user.getUsername()
         );
+    }
+    
+    @PostMapping("/logout")
+    public String logout(@RequestHeader("Authorization") String authHeader) {
+
+        String token = authHeader.substring(7);
+
+        blacklistedTokenRepository.save(
+                BlacklistedToken.builder()
+                        .token(token)
+                        .blacklistedAt(LocalDateTime.now())
+                        .build()
+        );
+
+        return "Logged out successfully";
     }
 }

@@ -19,13 +19,14 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
-
+    	
         final String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -37,6 +38,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String username = jwtService.extractUsername(token);
         String role = jwtService.extractRole(token);
 
+        
+        if (blacklistedTokenRepository.existsByToken(token)) {
+    	    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    	    return;
+    	}
+        
+        
         SimpleGrantedAuthority authority =
                 new SimpleGrantedAuthority("ROLE_" + role);
 
