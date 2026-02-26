@@ -126,22 +126,31 @@ public class TaskServiceImpl implements TaskService {
     }
     
     @Override
-    public Page<Task> getTasks(Pageable pageable) {
-        return taskRepository.findAll(pageable);
-    }
-    
-    public List<Task> getTasksForCurrentUser() {
+    public Page<TaskResponseDTO> getTasks(Pageable pageable) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
 
-        if (auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
-            return taskRepository.findAll();
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        Page<Task> taskPage;
+
+        if (isAdmin) {
+            taskPage = taskRepository.findAll(pageable);
+        } else {
+            taskPage = taskRepository.findByUserUsername(username, pageable);
         }
 
-        return taskRepository.findByUserUsername(username);
-    }
-    
-   
+        return taskPage.map(task ->
+                TaskResponseDTO.builder()
+                        .id(task.getId())
+                        .title(task.getTitle())
+                        .description(task.getDescription())
+                        .status(task.getStatus())
+                        .dueDate(task.getDueDate())
+                        .createdAt(task.getCreatedAt())
+                        .build()
+        );
+    }     
 }

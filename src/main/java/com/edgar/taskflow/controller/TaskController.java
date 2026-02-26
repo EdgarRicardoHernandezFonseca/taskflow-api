@@ -3,11 +3,9 @@ package com.edgar.taskflow.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import com.edgar.taskflow.service.TaskService;
 import com.edgar.taskflow.dto.TaskRequestDTO;
 import com.edgar.taskflow.dto.TaskResponseDTO;
-import com.edgar.taskflow.entity.Task;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +29,7 @@ public class TaskController {
     }
 
 	@GetMapping
-	public Page<Task> getAllTasks(
+	public Page<TaskResponseDTO> getAllTasks(
 	        @RequestParam(defaultValue = "0") int page,
 	        @RequestParam(defaultValue = "5") int size,
 	        @RequestParam(defaultValue = "id") String sortBy,

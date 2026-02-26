@@ -5,7 +5,6 @@ import com.edgar.taskflow.dto.TaskRequestDTO;
 import com.edgar.taskflow.dto.TaskResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import com.edgar.taskflow.entity.Task;
 
 public interface TaskService {
 
@@ -13,7 +12,7 @@ public interface TaskService {
 
     List<TaskResponseDTO> getAllTasks();	
 
-    Page<Task> getTasks(Pageable pageable);
+    Page<TaskResponseDTO> getTasks(Pageable pageable);
 
     TaskResponseDTO getTaskById(Long id);
 

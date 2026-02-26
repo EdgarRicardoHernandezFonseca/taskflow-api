@@ -11,9 +11,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
+import com.edgar.taskflow.auth.RefreshTokenRepository;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -25,6 +28,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final BlacklistedTokenRepository blacklistedTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     
     @PostMapping("/register")
     public String register(@RequestBody AuthRequest request) {
@@ -57,31 +61,34 @@ public class AuthController {
                 .orElseThrow();
 
         String accessToken = jwtService.generateToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
+        String refreshToken = UUID.randomUUID().toString();
 
-        return new AuthResponse(
-                accessToken,
-                refreshToken,
-                user.getUsername()
+        refreshTokenRepository.deleteByUser(user);
+
+        refreshTokenRepository.save(
+                RefreshToken.builder()
+                        .token(refreshToken)
+                        .user(user)
+                        .expiryDate(LocalDateTime.now().plusDays(7))
+                        .build()
         );
+
+        return new AuthResponse(accessToken, refreshToken);
     }
 
     @PostMapping("/refresh")
-    public AuthResponse refresh(@RequestBody RefreshRequest request) {
+    public AuthResponse refresh(@RequestBody String refreshToken) {
 
-        String username = jwtService.extractUsername(request.getRefreshToken());
+        RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
 
-        User user = userRepository
-                .findByUsername(username)
-                .orElseThrow();
+        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Refresh token expired");
+        }
 
-        String newAccessToken = jwtService.generateToken(user);
+        String newAccessToken = jwtService.generateToken(token.getUser());
 
-        return new AuthResponse(
-                newAccessToken,
-                request.getRefreshToken(),
-                user.getUsername()
-        );
+        return new AuthResponse(newAccessToken, refreshToken);
     }
     
     @PostMapping("/logout")
