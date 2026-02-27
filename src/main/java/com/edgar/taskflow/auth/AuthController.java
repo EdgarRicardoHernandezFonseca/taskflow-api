@@ -6,6 +6,9 @@ import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.security.BlacklistedToken;
 import com.edgar.taskflow.security.BlacklistedTokenRepository;
 import com.edgar.taskflow.security.JwtService;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
@@ -77,32 +81,68 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public AuthResponse refresh(@RequestBody String refreshToken) {
+    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshRequest request) {
 
-        RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
+        String refreshToken = request.getRefreshToken();
+
+        RefreshToken storedToken = refreshTokenRepository
+                .findByToken(refreshToken)
                 .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
 
-        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+        if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.delete(storedToken);
             throw new RuntimeException("Refresh token expired");
         }
 
-        String newAccessToken = jwtService.generateToken(token.getUser());
+        User user = storedToken.getUser();
 
-        return new AuthResponse(newAccessToken, refreshToken);
-    }
-    
-    @PostMapping("/logout")
-    public String logout(@RequestHeader("Authorization") String authHeader) {
+        // 🔄 ROTACIÓN (muy importante)
+        refreshTokenRepository.delete(storedToken);
 
-        String token = authHeader.substring(7);
+        String newRefreshToken = UUID.randomUUID().toString();
 
-        blacklistedTokenRepository.save(
-                BlacklistedToken.builder()
-                        .token(token)
-                        .blacklistedAt(LocalDateTime.now())
+        refreshTokenRepository.save(
+                RefreshToken.builder()
+                        .token(newRefreshToken)
+                        .user(user)
+                        .expiryDate(LocalDateTime.now().plusDays(7))
                         .build()
         );
 
-        return "Logged out successfully";
+        String newAccessToken = jwtService.generateToken(user);
+
+        return ResponseEntity.ok(
+                new AuthResponse(newAccessToken, newRefreshToken)
+        );
+    }
+    
+    @Transactional
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(HttpServletRequest request) {
+
+        final String authHeader = request.getHeader("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.badRequest().body("No token provided");
+        }
+
+        String token = authHeader.substring(7);
+
+        if (!blacklistedTokenRepository.existsByToken(token)) {
+            blacklistedTokenRepository.save(
+                    BlacklistedToken.builder()
+                            .token(token)
+                            .build()
+            );
+        }
+
+        String username = jwtService.extractUsername(token);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        refreshTokenRepository.deleteByUser(user);
+
+        return ResponseEntity.ok("Logged out successfully");
     }
 }
