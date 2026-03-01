@@ -1,6 +1,6 @@
 package com.edgar.taskflow.auth;
 
-import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -11,11 +11,17 @@ import com.edgar.taskflow.entity.User;
 
 public interface RefreshTokenRepository  extends JpaRepository<RefreshToken, Long> {
 
-    Optional<RefreshToken> findByToken(String token);
+	List<RefreshToken> findByUser(User user);
 
-    void deleteByUser(User user);
-    
     @Modifying
     @Query("UPDATE RefreshToken rt SET rt.revoked = true WHERE rt.user = :user")
     void revokeAllByUser(@Param("user") User user);
+
+    @Modifying
+    @Query("UPDATE RefreshToken rt SET rt.revoked = true WHERE rt.familyId = :familyId")
+    void revokeByFamilyId(@Param("familyId") String familyId);
+    
+    @Modifying
+    @Query("DELETE FROM RefreshToken rt WHERE rt.user = :user")
+    void deleteByUser(@Param("user") User user);
 }

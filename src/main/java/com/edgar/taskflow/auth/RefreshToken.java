@@ -4,12 +4,12 @@ import java.time.LocalDateTime;
 
 import com.edgar.taskflow.entity.User;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -24,12 +24,19 @@ import lombok.Setter;
 @AllArgsConstructor
 public class RefreshToken {
 	
-	@Id
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String token;
+    private String tokenHash; // 🔐 ahora guardamos hash
+
+    private String familyId;  // 🔐 identifica la sesión
+
+    @ManyToOne
+    private RefreshToken parentToken; // token anterior
+
+    @OneToOne
+    private RefreshToken replacedByToken; // siguiente token
 
     private LocalDateTime expiryDate;
 
@@ -38,5 +45,4 @@ public class RefreshToken {
 
     @ManyToOne
     private User user;
-
 }

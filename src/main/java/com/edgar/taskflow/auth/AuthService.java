@@ -1,7 +1,10 @@
 package com.edgar.taskflow.auth;
 
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.UUID;
 
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import com.edgar.taskflow.entity.User;
@@ -17,43 +20,54 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-	
-	 private final BlacklistedTokenRepository blacklistedTokenRepository;
-	 private final RefreshTokenRepository refreshTokenRepository;
-	 private final UserRepository userRepository;
-	 private final JwtService jwtService;
-	
-	 @Transactional
-	 public void logout(HttpServletRequest request) {
-		 final String authHeader = request.getHeader("Authorization");
 
-	        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-	            throw new RuntimeException("No token provided");
-	        }
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
+    private final JwtService jwtService;
 
-	        String token = authHeader.substring(7);
+    @Transactional
+    public void logout(HttpServletRequest request) {
 
-	        // 1️⃣ Agregar access token a blacklist
-	        if (!blacklistedTokenRepository.existsByToken(token)) {
-	        	blacklistedTokenRepository.save(
-	        	        BlacklistedToken.builder()
-	        	                .token(token)
-	        	                .expiryDate(
-	        	                    jwtService.extractExpiration(token)
-	        	                            .toInstant()
-	        	                            .atZone(ZoneId.systemDefault())
-	        	                            .toLocalDateTime()
-	        	                )
-	        	                .build()
-	        	);
-	        }
+        final String authHeader = request.getHeader("Authorization");
 
-	        // 2️⃣ Invalidar TODOS los refresh tokens del usuario
-	        String username = jwtService.extractUsername(token);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("No token provided");
+        }
 
-	        User user = userRepository.findByUsername(username)
-	                .orElseThrow(() -> new RuntimeException("User not found"));
+        String accessToken = authHeader.substring(7);
 
-	        refreshTokenRepository.revokeAllByUser(user);
-	 }
+        // 1️⃣ Blacklist access token
+        if (!blacklistedTokenRepository.existsByToken(accessToken)) {
+
+            blacklistedTokenRepository.save(
+                    BlacklistedToken.builder()
+                            .token(accessToken)
+                            .expiryDate(
+                                    jwtService.extractExpiration(accessToken)
+                                            .toInstant()
+                                            .atZone(ZoneId.systemDefault())
+                                            .toLocalDateTime()
+                            )
+                            .build()
+            );
+        }
+
+        // 2️⃣ Revocar todos los refresh tokens del usuario
+        String username = jwtService.extractUsername(accessToken);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        refreshTokenRepository.revokeAllByUser(user);
+    }
+    
+    private RefreshToken findMatchingToken(String rawToken, User user) {
+
+        return refreshTokenRepository.findByUser(user)
+                .stream()
+                .filter(rt -> BCrypt.checkpw(rawToken, rt.getTokenHash()))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+    }
 }

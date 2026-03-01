@@ -10,6 +10,8 @@ import com.edgar.taskflow.security.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,6 +55,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @Transactional
     public AuthResponse login(@RequestBody AuthRequest request) {
 
         authenticationManager.authenticate(
@@ -67,67 +70,86 @@ public class AuthController {
                 .orElseThrow();
 
         String accessToken = jwtService.generateToken(user);
-        String refreshToken = UUID.randomUUID().toString();
 
-        refreshTokenRepository.deleteByUser(user);
+        // 🔐 Crear refresh token raw
+        String rawRefreshToken = UUID.randomUUID().toString();
 
-        refreshTokenRepository.save(
-                RefreshToken.builder()
-                        .token(refreshToken)
-                        .user(user)
-                        .expiryDate(LocalDateTime.now().plusDays(7))
-                        .build()
-        );
+        // 🔐 Hashear
+        String hashedToken = BCrypt.hashpw(rawRefreshToken, BCrypt.gensalt());
 
-        return new AuthResponse(accessToken, refreshToken);
+        // 🔐 Crear familyId
+        String familyId = UUID.randomUUID().toString();
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .tokenHash(hashedToken)
+                .familyId(familyId)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .used(false)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+
+        return new AuthResponse(accessToken, rawRefreshToken);
     }
 
     @Transactional
     @PostMapping("/refresh")
     public AuthResponse refresh(@RequestBody RefreshRequest request) {
 
-    	 String refreshToken = request.getRefreshToken();
-    	
-    	 RefreshToken storedToken = refreshTokenRepository
-    	            .findByToken(refreshToken)
-    	            .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+        String rawRefreshToken = request.getRefreshToken();
 
-    	    // 🔥 1. Detectar reuse
-    	    if (storedToken.isUsed() || storedToken.isRevoked()) {
+        // 🔍 Buscar usuario desde JWT (si fuera JWT)
+        // Como aquí es UUID plano, debes buscar por usuario autenticado
+        // En este ejemplo buscamos por todos y comparamos
 
-    	        // POSIBLE ATAQUE → invalidar toda la sesión
-    	        refreshTokenRepository.revokeAllByUser(storedToken.getUser());
+        RefreshToken storedToken = refreshTokenRepository.findAll()
+                .stream()
+                .filter(rt -> BCrypt.checkpw(rawRefreshToken, rt.getTokenHash()))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
 
-    	        throw new RuntimeException("Refresh token reuse detected. Session revoked.");
-    	    }
+        if (storedToken.isUsed() || storedToken.isRevoked()) {
 
-    	    // 🔥 2. Verificar expiración
-    	    if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-    	        storedToken.setRevoked(true);
-    	        refreshTokenRepository.save(storedToken);
-    	        throw new RuntimeException("Refresh token expired");
-    	    }
+            // 🚨 REUSE DETECTED → revocar familia completa
+            refreshTokenRepository.revokeByFamilyId(storedToken.getFamilyId());
 
-    	    // 🔁 3. Marcar el actual como usado
-    	    storedToken.setUsed(true);
-    	    refreshTokenRepository.save(storedToken);
+            throw new RuntimeException("Refresh token reuse detected");
+        }
 
-    	    // 🔁 4. Crear nuevo refresh
-    	    String newRefreshToken = UUID.randomUUID().toString();
+        if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            storedToken.setRevoked(true);
+            refreshTokenRepository.save(storedToken);
+            throw new RuntimeException("Refresh token expired");
+        }
 
-    	    RefreshToken newToken = RefreshToken.builder()
-    	            .token(newRefreshToken)
-    	            .user(storedToken.getUser())
-    	            .expiryDate(LocalDateTime.now().plusDays(7))
-    	            .revoked(false)
-    	            .used(false)
-    	            .build();
+        // 🔁 Marcar como usado
+        storedToken.setUsed(true);
+        refreshTokenRepository.save(storedToken);
 
-    	    refreshTokenRepository.save(newToken);
+        // 🔁 Crear nuevo token
+        String newRawToken = UUID.randomUUID().toString();
+        String newHashed = BCrypt.hashpw(newRawToken, BCrypt.gensalt());
 
-    	    String newAccessToken = jwtService.generateToken(storedToken.getUser());
+        RefreshToken newToken = RefreshToken.builder()
+                .tokenHash(newHashed)
+                .familyId(storedToken.getFamilyId())
+                .parentToken(storedToken)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .used(false)
+                .user(storedToken.getUser())
+                .build();
 
-    	    return new AuthResponse(newAccessToken, newRefreshToken);
+        refreshTokenRepository.save(newToken);
+
+        storedToken.setReplacedByToken(newToken);
+        refreshTokenRepository.save(storedToken);
+
+        String newAccessToken = jwtService.generateToken(storedToken.getUser());
+
+        return new AuthResponse(newAccessToken, newRawToken);
     }
     
     @PostMapping("/logout")

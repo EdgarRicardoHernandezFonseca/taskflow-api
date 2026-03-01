@@ -1,76 +1,71 @@
 package com.edgar.taskflow.security;
 
-import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserDetailsService userDetailsService;
     private final BlacklistedTokenRepository blacklistedTokenRepository;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getServletPath();
+        final String authHeader = request.getHeader("Authorization");
 
-        // 🔥 IGNORAR endpoints de auth
-        if (path.startsWith("/api/auth")) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String authHeader = request.getHeader("Authorization");
+        String token = authHeader.substring(7);
 
-        try {
+        // 🔥 1️⃣ Verificar blacklist
+        if (blacklistedTokenRepository.existsByToken(token)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
 
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        String username = jwtService.extractUsername(token);
 
-                String token = authHeader.substring(7);
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                if (blacklistedTokenRepository.existsByToken(token)) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    return;
-                }
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                String username = jwtService.extractUsername(token);
-                String role = jwtService.extractRole(token);
+            if (jwtService.isTokenValid(token, username)) {
 
-                if (username != null &&
-                        SecurityContextHolder.getContext().getAuthentication() == null) {
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
 
-                    SimpleGrantedAuthority authority =
-                            new SimpleGrantedAuthority("ROLE_" + role);
+                authToken.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request)
+                );
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    username,
-                                    null,
-                                    List.of(authority)
-                            );
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
-
-        } catch (ExpiredJwtException e) {
-            System.out.println("Token expirado");
         }
 
         filterChain.doFilter(request, response);
