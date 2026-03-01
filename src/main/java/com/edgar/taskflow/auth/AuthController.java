@@ -22,6 +22,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 
 import com.edgar.taskflow.auth.RefreshTokenRepository;
 
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -33,6 +34,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final BlacklistedTokenRepository blacklistedTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final AuthService authService;
     
     @PostMapping("/register")
     public String register(@RequestBody AuthRequest request) {
@@ -80,69 +82,57 @@ public class AuthController {
         return new AuthResponse(accessToken, refreshToken);
     }
 
+    @Transactional
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshRequest request) {
+    public AuthResponse refresh(@RequestBody RefreshRequest request) {
 
-        String refreshToken = request.getRefreshToken();
+    	 String refreshToken = request.getRefreshToken();
+    	
+    	 RefreshToken storedToken = refreshTokenRepository
+    	            .findByToken(refreshToken)
+    	            .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
 
-        RefreshToken storedToken = refreshTokenRepository
-                .findByToken(refreshToken)
-                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+    	    // 🔥 1. Detectar reuse
+    	    if (storedToken.isUsed() || storedToken.isRevoked()) {
 
-        if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            refreshTokenRepository.delete(storedToken);
-            throw new RuntimeException("Refresh token expired");
-        }
+    	        // POSIBLE ATAQUE → invalidar toda la sesión
+    	        refreshTokenRepository.revokeAllByUser(storedToken.getUser());
 
-        User user = storedToken.getUser();
+    	        throw new RuntimeException("Refresh token reuse detected. Session revoked.");
+    	    }
 
-        // 🔄 ROTACIÓN (muy importante)
-        refreshTokenRepository.delete(storedToken);
+    	    // 🔥 2. Verificar expiración
+    	    if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+    	        storedToken.setRevoked(true);
+    	        refreshTokenRepository.save(storedToken);
+    	        throw new RuntimeException("Refresh token expired");
+    	    }
 
-        String newRefreshToken = UUID.randomUUID().toString();
+    	    // 🔁 3. Marcar el actual como usado
+    	    storedToken.setUsed(true);
+    	    refreshTokenRepository.save(storedToken);
 
-        refreshTokenRepository.save(
-                RefreshToken.builder()
-                        .token(newRefreshToken)
-                        .user(user)
-                        .expiryDate(LocalDateTime.now().plusDays(7))
-                        .build()
-        );
+    	    // 🔁 4. Crear nuevo refresh
+    	    String newRefreshToken = UUID.randomUUID().toString();
 
-        String newAccessToken = jwtService.generateToken(user);
+    	    RefreshToken newToken = RefreshToken.builder()
+    	            .token(newRefreshToken)
+    	            .user(storedToken.getUser())
+    	            .expiryDate(LocalDateTime.now().plusDays(7))
+    	            .revoked(false)
+    	            .used(false)
+    	            .build();
 
-        return ResponseEntity.ok(
-                new AuthResponse(newAccessToken, newRefreshToken)
-        );
+    	    refreshTokenRepository.save(newToken);
+
+    	    String newAccessToken = jwtService.generateToken(storedToken.getUser());
+
+    	    return new AuthResponse(newAccessToken, newRefreshToken);
     }
     
-    @Transactional
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletRequest request) {
-
-        final String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.badRequest().body("No token provided");
-        }
-
-        String token = authHeader.substring(7);
-
-        if (!blacklistedTokenRepository.existsByToken(token)) {
-            blacklistedTokenRepository.save(
-                    BlacklistedToken.builder()
-                            .token(token)
-                            .build()
-            );
-        }
-
-        String username = jwtService.extractUsername(token);
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        refreshTokenRepository.deleteByUser(user);
-
-        return ResponseEntity.ok("Logged out successfully");
+        authService.logout(request);
+        return ResponseEntity.ok("Logged out");
     }
 }

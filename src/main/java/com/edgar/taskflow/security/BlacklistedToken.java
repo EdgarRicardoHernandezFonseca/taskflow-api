@@ -21,6 +21,8 @@ public class BlacklistedToken {
 	    private String token;
 
 	    private LocalDateTime blacklistedAt;
+	    
+	    private LocalDateTime expiryDate;
 
 	    @PrePersist
 	    public void prePersist() {

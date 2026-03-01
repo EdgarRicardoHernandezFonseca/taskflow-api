@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.edgar.taskflow.entity.User;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -27,9 +28,13 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false)
     private String token;
 
     private LocalDateTime expiryDate;
+
+    private boolean revoked;
+    private boolean used;
 
     @ManyToOne
     private User user;
