@@ -1,6 +1,7 @@
 package com.edgar.taskflow.auth;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -24,4 +25,6 @@ public interface RefreshTokenRepository  extends JpaRepository<RefreshToken, Lon
     @Modifying
     @Query("DELETE FROM RefreshToken rt WHERE rt.user = :user")
     void deleteByUser(@Param("user") User user);
+    
+    Optional<RefreshToken> findByTokenId(String tokenId);
 }

@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.edgar.taskflow.entity.User;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -45,4 +46,9 @@ public class RefreshToken {
 
     @ManyToOne
     private User user;
+    
+    private LocalDateTime sessionStart;
+    
+    @Column(unique = true)
+    private String tokenId;
 }
