@@ -9,6 +9,9 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import com.edgar.taskflow.entity.User;
+import com.edgar.taskflow.exception.InvalidTokenException;
+import com.edgar.taskflow.exception.ResourceNotFoundException;
+import com.edgar.taskflow.exception.ReuseTokenException;
 import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.security.BlacklistedToken;
 import com.edgar.taskflow.security.BlacklistedTokenRepository;
@@ -67,7 +70,7 @@ public class AuthService {
         String username = jwtService.extractUsername(accessToken);
 
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         refreshTokenRepository.revokeAllByUser(user);
     }
@@ -78,7 +81,7 @@ public class AuthService {
                 .stream()
                 .filter(rt -> BCrypt.checkpw(rawToken, rt.getTokenHash()))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+                .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
     }
     
     @Transactional
@@ -103,10 +106,10 @@ public class AuthService {
         String rawSecret = parts[1];
 
         RefreshToken storedToken = refreshTokenRepository.findByTokenId(tokenId)
-                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+                .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
 
         if (!BCrypt.checkpw(rawSecret, storedToken.getTokenHash())) {
-            throw new RuntimeException("Invalid refresh token");
+            throw new InvalidTokenException("Invalid refresh token");
         }
 
         // 🔒 Max session lifetime
@@ -121,7 +124,7 @@ public class AuthService {
         // 🔁 Reuse detection
         if (storedToken.isUsed() || storedToken.isRevoked()) {
             refreshTokenRepository.revokeByFamilyId(storedToken.getFamilyId());
-            throw new RuntimeException("Reuse detected");
+            throw new ReuseTokenException("Refresh token reuse detected");
         }
 
         storedToken.setUsed(true);
@@ -185,7 +188,13 @@ public class AuthService {
                 )
         );
 
-        User user = (User) authentication.getPrincipal();
+        // Obtener username desde security
+        String username = authentication.getName();
+
+        // Buscar tu entidad real
+        com.edgar.taskflow.entity.User user = userRepository
+                .findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // 🔐 Generar Access Token
         String accessToken = jwtService.generateToken(user);
