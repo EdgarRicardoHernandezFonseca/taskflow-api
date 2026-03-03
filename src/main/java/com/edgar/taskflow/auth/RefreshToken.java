@@ -29,26 +29,27 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String tokenHash; // 🔐 ahora guardamos hash
-
+    private LocalDateTime expiryDate;
+    
     private String familyId;  // 🔐 identifica la sesión
+    
+    private boolean revoked;
 
+    private LocalDateTime sessionStart;
+    
+    private String tokenHash; // 🔐 ahora guardamos hash
+    
+    @Column(unique = true)
+    private String tokenId;
+    
+    private boolean used;
+    
     @ManyToOne
     private RefreshToken parentToken; // token anterior
 
     @OneToOne
     private RefreshToken replacedByToken; // siguiente token
 
-    private LocalDateTime expiryDate;
-
-    private boolean revoked;
-    private boolean used;
-
     @ManyToOne
-    private User user;
-    
-    private LocalDateTime sessionStart;
-    
-    @Column(unique = true)
-    private String tokenId;
+    private User user;   
 }

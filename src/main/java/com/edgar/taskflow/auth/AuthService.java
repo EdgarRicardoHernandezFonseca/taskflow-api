@@ -148,6 +148,8 @@ public class AuthService {
                 .build();
 
         refreshTokenRepository.save(newToken);
+        storedToken.setReplacedByToken(newToken);
+        refreshTokenRepository.save(storedToken);
 
         String newAccessToken = jwtService.generateToken(storedToken.getUser());
 
