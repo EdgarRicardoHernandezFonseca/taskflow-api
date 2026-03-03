@@ -116,81 +116,11 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    @Transactional
     public ResponseEntity<?> refresh(
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-
-        String rawRefreshToken = extractCookie(request, "refresh_token");
-
-        if (rawRefreshToken == null) {
-            return ResponseEntity.status(401).body("No refresh token");
-        }
-
-        String[] parts = rawRefreshToken.split("\\.");
-
-        if (parts.length != 2) {
-            throw new RuntimeException("Invalid token format");
-        }
-
-        String tokenId = parts[0];
-        String rawSecret = parts[1];
-
-        RefreshToken storedToken = refreshTokenRepository.findByTokenId(tokenId)
-                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
-
-        if (!BCrypt.checkpw(rawSecret, storedToken.getTokenHash())) {
-            throw new RuntimeException("Invalid refresh token");
-        }
-
-        // 🔒 Verificar límite absoluto de sesión (AHORA SÍ)
-        if (storedToken.getSessionStart()
-                .plusDays(MAX_SESSION_DAYS)
-                .isBefore(LocalDateTime.now())) {
-
-            refreshTokenRepository.revokeByFamilyId(storedToken.getFamilyId());
-            throw new RuntimeException("Max session lifetime reached");
-        }
-
-        if (storedToken.isUsed() || storedToken.isRevoked()) {
-            refreshTokenRepository.revokeByFamilyId(storedToken.getFamilyId());
-            throw new RuntimeException("Reuse detected");
-        }
-
-        storedToken.setUsed(true);
-        refreshTokenRepository.save(storedToken);
-
-        String newRawToken = UUID.randomUUID().toString();
-        String newHashed = BCrypt.hashpw(newRawToken, BCrypt.gensalt());
-
-        RefreshToken newToken = RefreshToken.builder()
-                .tokenHash(newHashed)
-                .familyId(storedToken.getFamilyId())
-                .parentToken(storedToken)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .sessionStart(storedToken.getSessionStart())
-                .revoked(false)
-                .used(false)
-                .user(storedToken.getUser())
-                .build();
-
-        refreshTokenRepository.save(newToken);
-
-        String newAccessToken = jwtService.generateToken(storedToken.getUser());
-
-        Cookie newAccessCookie = new Cookie("access_token", newAccessToken);
-        newAccessCookie.setHttpOnly(true);
-        newAccessCookie.setPath("/");
-        newAccessCookie.setMaxAge(15 * 60);
-        response.addCookie(newAccessCookie);
-
-        Cookie newRefreshCookie = new Cookie("refresh_token", newRawToken);
-        newRefreshCookie.setHttpOnly(true);
-        newRefreshCookie.setPath("/api/auth/refresh");
-        newRefreshCookie.setMaxAge(7 * 24 * 60 * 60);
-        response.addCookie(newRefreshCookie);
-
+        authService.refresh(request, response);
         return ResponseEntity.ok("Token refreshed");
     }
     

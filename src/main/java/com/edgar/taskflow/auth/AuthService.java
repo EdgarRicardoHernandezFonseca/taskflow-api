@@ -13,7 +13,9 @@ import com.edgar.taskflow.security.BlacklistedToken;
 import com.edgar.taskflow.security.BlacklistedTokenRepository;
 import com.edgar.taskflow.security.JwtService;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -25,7 +27,9 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
     private final JwtService jwtService;
-
+    
+    private static final int MAX_SESSION_DAYS = 30;
+    
     @Transactional
     public void logout(HttpServletRequest request) {
 
@@ -69,5 +73,99 @@ public class AuthService {
                 .filter(rt -> BCrypt.checkpw(rawToken, rt.getTokenHash()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+    }
+    
+    @Transactional
+    public void refresh(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+
+        String rawRefreshToken = extractCookie(request, "refresh_token");
+
+        if (rawRefreshToken == null) {
+            throw new RuntimeException("No refresh token");
+        }
+
+        String[] parts = rawRefreshToken.split("\\.");
+
+        if (parts.length != 2) {
+            throw new RuntimeException("Invalid token format");
+        }
+
+        String tokenId = parts[0];
+        String rawSecret = parts[1];
+
+        RefreshToken storedToken = refreshTokenRepository.findByTokenId(tokenId)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+
+        if (!BCrypt.checkpw(rawSecret, storedToken.getTokenHash())) {
+            throw new RuntimeException("Invalid refresh token");
+        }
+
+        // 🔒 Max session lifetime
+        if (storedToken.getSessionStart()
+                .plusDays(MAX_SESSION_DAYS)
+                .isBefore(LocalDateTime.now())) {
+
+            refreshTokenRepository.revokeByFamilyId(storedToken.getFamilyId());
+            throw new RuntimeException("Max session lifetime reached");
+        }
+
+        // 🔁 Reuse detection
+        if (storedToken.isUsed() || storedToken.isRevoked()) {
+            refreshTokenRepository.revokeByFamilyId(storedToken.getFamilyId());
+            throw new RuntimeException("Reuse detected");
+        }
+
+        storedToken.setUsed(true);
+        refreshTokenRepository.save(storedToken);
+
+        // 🔄 Crear nuevo refresh (rotation)
+        String newTokenId = UUID.randomUUID().toString();
+        String newSecret = UUID.randomUUID().toString();
+        String newHashed = BCrypt.hashpw(newSecret, BCrypt.gensalt());
+
+        RefreshToken newToken = RefreshToken.builder()
+                .tokenId(newTokenId)
+                .tokenHash(newHashed)
+                .familyId(storedToken.getFamilyId())
+                .parentToken(storedToken)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .sessionStart(storedToken.getSessionStart())
+                .revoked(false)
+                .used(false)
+                .user(storedToken.getUser())
+                .build();
+
+        refreshTokenRepository.save(newToken);
+
+        String newAccessToken = jwtService.generateToken(storedToken.getUser());
+
+        // 🍪 Cookies
+        Cookie accessCookie = new Cookie("access_token", newAccessToken);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(15 * 60);
+        response.addCookie(accessCookie);
+
+        String newRawRefresh = newTokenId + "." + newSecret;
+
+        Cookie refreshCookie = new Cookie("refresh_token", newRawRefresh);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setPath("/api/auth/refresh");
+        refreshCookie.setMaxAge(7 * 24 * 60 * 60);
+        response.addCookie(refreshCookie);
+    }
+    
+    private String extractCookie(HttpServletRequest request, String name) {
+        if (request.getCookies() == null) return null;
+
+        for (Cookie cookie : request.getCookies()) {
+            if (cookie.getName().equals(name)) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 }
