@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
 
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -27,6 +31,8 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
     private final JwtService jwtService;
+    
+    private final AuthenticationManager authenticationManager;
     
     private static final int MAX_SESSION_DAYS = 30;
     
@@ -167,5 +173,58 @@ public class AuthService {
             }
         }
         return null;
+    }
+    
+    @Transactional
+    public void login(LoginRequest request, HttpServletResponse response) {
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()
+                )
+        );
+
+        User user = (User) authentication.getPrincipal();
+
+        // 🔐 Generar Access Token
+        String accessToken = jwtService.generateToken(user);
+
+        // 🔁 Crear Token Family
+        String familyId = UUID.randomUUID().toString();
+
+        // 🔄 Crear Refresh Token (tokenId.secret)
+        String tokenId = UUID.randomUUID().toString();
+        String secret = UUID.randomUUID().toString();
+        String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .tokenId(tokenId)
+                .tokenHash(hashedSecret)
+                .familyId(familyId)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .sessionStart(LocalDateTime.now())
+                .revoked(false)
+                .used(false)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+
+        // 🍪 ACCESS COOKIE
+        Cookie accessCookie = new Cookie("access_token", accessToken);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(15 * 60);
+        response.addCookie(accessCookie);
+
+        // 🍪 REFRESH COOKIE
+        String rawRefresh = tokenId + "." + secret;
+
+        Cookie refreshCookie = new Cookie("refresh_token", rawRefresh);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setPath("/api/auth/refresh");
+        refreshCookie.setMaxAge(7 * 24 * 60 * 60);
+        response.addCookie(refreshCookie);
     }
 }
