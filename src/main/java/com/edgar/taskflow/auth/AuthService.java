@@ -2,6 +2,7 @@ package com.edgar.taskflow.auth;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
@@ -107,6 +108,14 @@ public class AuthService {
 
         RefreshToken storedToken = refreshTokenRepository.findByTokenId(tokenId)
                 .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
+        
+        if (storedToken.isUsed() || storedToken.getReplacedByToken() != null) {
+            
+            // 🚨 Reuse detectado
+            revokeTokenFamily(storedToken.getFamilyId());
+            
+            throw new ReuseTokenException("Refresh token reuse detected. Session revoked.");
+        }
 
         if (!BCrypt.checkpw(rawSecret, storedToken.getTokenHash())) {
             throw new InvalidTokenException("Invalid refresh token");
@@ -237,5 +246,17 @@ public class AuthService {
         refreshCookie.setPath("/api/auth/refresh");
         refreshCookie.setMaxAge(7 * 24 * 60 * 60);
         response.addCookie(refreshCookie);
+    }
+    
+    private void revokeTokenFamily(String familyId) {
+
+        List<RefreshToken> familyTokens =
+                refreshTokenRepository.findByFamilyId(familyId);
+
+        for (RefreshToken t : familyTokens) {
+            t.setRevoked(true);
+        }
+
+        refreshTokenRepository.saveAll(familyTokens);
     }
 }
