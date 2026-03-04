@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
+import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.exception.InvalidTokenException;
 import com.edgar.taskflow.exception.ResourceNotFoundException;
@@ -225,6 +226,30 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         refreshTokenRepository.revokeAllByUser(user);
+    }
+    
+    // =========================================================
+    // ACTIVE SESSIONS
+    // =========================================================
+    @Transactional
+    public List<ActiveSessionResponse> getActiveSessions(User user, String currentFamilyId) {
+
+        LocalDateTime now = LocalDateTime.now();
+
+        return refreshTokenRepository.findByUserAndRevokedFalse(user)
+                .stream()
+                // Solo el último token de cada family (no reemplazado)
+                .filter(token -> token.getReplacedByToken() == null)
+                // No expirado
+                .filter(token -> token.getExpiryDate().isAfter(now))
+                .map(token -> ActiveSessionResponse.builder()
+                        .familyId(token.getFamilyId())
+                        .sessionStart(token.getSessionStart())
+                        .expiresAt(token.getExpiryDate())
+                        .current(token.getFamilyId().equals(currentFamilyId))
+                        .build()
+                )
+                .toList();
     }
 
     // =========================================================

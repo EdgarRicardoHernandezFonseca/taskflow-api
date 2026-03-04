@@ -1,0 +1,16 @@
+package com.edgar.taskflow.auth.dto;
+
+import java.time.LocalDateTime;
+
+import lombok.Builder;
+import lombok.Data;
+
+@Data
+@Builder
+public class ActiveSessionResponse {
+
+	private String familyId;
+    private LocalDateTime sessionStart;
+    private LocalDateTime expiresAt;
+    private boolean current;
+}
