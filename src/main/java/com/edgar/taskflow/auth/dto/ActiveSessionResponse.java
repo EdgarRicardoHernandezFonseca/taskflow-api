@@ -11,6 +11,6 @@ public class ActiveSessionResponse {
 
 	private String familyId;
     private LocalDateTime sessionStart;
-    private LocalDateTime expiresAt;
+    private LocalDateTime expiryDate;
     private boolean current;
 }

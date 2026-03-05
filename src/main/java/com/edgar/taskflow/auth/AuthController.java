@@ -32,8 +32,7 @@ public class AuthController {
     private final AuthService authService;
     
     private final JwtService jwtService;
-    private final RefreshTokenRepository refreshTokenRepository;
-
+    
     @PostMapping("/register")
     public String register(@RequestBody AuthRequest request) {
 
@@ -78,29 +77,7 @@ public class AuthController {
     public ResponseEntity<List<ActiveSessionResponse>> getSessions(
             HttpServletRequest request
     ) {
-
-        String accessToken = extractAccessToken(request);
-
-        String username = jwtService.extractUsername(accessToken);
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        // Obtener familyId desde refresh cookie
-        String refreshRaw = extractCookie(request, "refresh_token");
-        String currentFamilyId = null;
-
-        if (refreshRaw != null && refreshRaw.contains(".")) {
-            String tokenId = refreshRaw.split("\\.")[0];
-            RefreshToken token = refreshTokenRepository.findByTokenId(tokenId).orElse(null);
-            if (token != null) {
-                currentFamilyId = token.getFamilyId();
-            }
-        }
-
-        return ResponseEntity.ok(
-                authService.getActiveSessions(user, currentFamilyId)
-        );
+        return ResponseEntity.ok(authService.getSessions(request));
     }
     
     @DeleteMapping("/sessions/{familyId}")
@@ -131,16 +108,5 @@ public class AuthController {
             throw new InvalidTokenException("No token provided");
         }
         return authHeader.substring(7);
-    }
-
-    private String extractCookie(HttpServletRequest request, String name) {
-        if (request.getCookies() == null) return null;
-
-        for (Cookie cookie : request.getCookies()) {
-            if (cookie.getName().equals(name)) {
-                return cookie.getValue();
-            }
-        }
-        return null;
     }
 }

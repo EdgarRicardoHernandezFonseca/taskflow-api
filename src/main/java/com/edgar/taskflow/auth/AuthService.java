@@ -232,24 +232,33 @@ public class AuthService {
     // ACTIVE SESSIONS
     // =========================================================
     @Transactional
-    public List<ActiveSessionResponse> getActiveSessions(User user, String currentFamilyId) {
+    public List<ActiveSessionResponse> getSessions(HttpServletRequest request) {
 
-        LocalDateTime now = LocalDateTime.now();
+        String accessToken = extractAccessToken(request);
 
-        return refreshTokenRepository.findByUserAndRevokedFalse(user)
-                .stream()
-                // Solo el último token de cada family (no reemplazado)
-                .filter(token -> token.getReplacedByToken() == null)
-                // No expirado
-                .filter(token -> token.getExpiryDate().isAfter(now))
-                .map(token -> ActiveSessionResponse.builder()
-                        .familyId(token.getFamilyId())
-                        .sessionStart(token.getSessionStart())
-                        .expiresAt(token.getExpiryDate())
-                        .current(token.getFamilyId().equals(currentFamilyId))
-                        .build()
-                )
-                .toList();
+        String username = jwtService.extractUsername(accessToken);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Obtener familyId desde refresh cookie
+        String refreshRaw = extractCookie(request, "refresh_token");
+        String currentFamilyId = null;
+
+        if (refreshRaw != null && refreshRaw.contains(".")) {
+
+            String tokenId = refreshRaw.split("\\.")[0];
+
+            RefreshToken token = refreshTokenRepository
+                    .findByTokenId(tokenId)
+                    .orElse(null);
+
+            if (token != null) {
+                currentFamilyId = token.getFamilyId();
+            }
+        }
+
+        return getActiveSessions(user, currentFamilyId);
     }
     
     @Transactional
@@ -271,6 +280,24 @@ public class AuthService {
         }
 
         refreshTokenRepository.saveAll(tokens);
+    }
+    
+    private List<ActiveSessionResponse> getActiveSessions(User user, String currentFamilyId) {
+
+        List<RefreshToken> tokens =
+                refreshTokenRepository.findByUserAndRevokedFalse(user);
+
+        return tokens.stream()
+                .filter(token -> token.getParentToken() == null) 
+                // solo tokens raíz de cada sesión
+                .map(token -> ActiveSessionResponse.builder()
+                        .familyId(token.getFamilyId())
+                        .sessionStart(token.getSessionStart())
+                        .expiryDate(token.getExpiryDate())
+                        .current(token.getFamilyId().equals(currentFamilyId))
+                        .build()
+                )
+                .toList();
     }
 
     // =========================================================
@@ -319,5 +346,16 @@ public class AuthService {
         }
 
         refreshTokenRepository.saveAll(familyTokens);
+    }
+    
+    private String extractAccessToken(HttpServletRequest request) {
+
+        final String authHeader = request.getHeader("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new InvalidTokenException("No token provided");
+        }
+
+        return authHeader.substring(7);
     }
 }
