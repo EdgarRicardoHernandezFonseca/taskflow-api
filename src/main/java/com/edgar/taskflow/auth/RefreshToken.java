@@ -52,4 +52,10 @@ public class RefreshToken {
 
     @ManyToOne
     private User user;   
+    
+    @Column(length = 45)
+    private String ipAddress;
+
+    @Column(length = 255)
+    private String userAgent;
 }

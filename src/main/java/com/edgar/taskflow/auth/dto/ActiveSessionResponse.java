@@ -13,4 +13,6 @@ public class ActiveSessionResponse {
     private LocalDateTime sessionStart;
     private LocalDateTime expiryDate;
     private boolean current;
+    private String ipAddress;
+    private String userAgent;
 }

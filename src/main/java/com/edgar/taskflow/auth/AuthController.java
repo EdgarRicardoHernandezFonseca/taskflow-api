@@ -52,10 +52,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(
             @RequestBody LoginRequest request,
-            HttpServletResponse response
-    ) {
-        authService.login(request, response);
-        return ResponseEntity.ok("Login successful");
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+
+        authService.login(request, httpRequest, response);
+
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/refresh")

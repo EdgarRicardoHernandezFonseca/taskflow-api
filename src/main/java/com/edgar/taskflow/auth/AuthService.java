@@ -21,12 +21,15 @@ import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.security.BlacklistedToken;
 import com.edgar.taskflow.security.BlacklistedTokenRepository;
 import com.edgar.taskflow.security.JwtService;
+import com.edgar.taskflow.security.LoginAlertService;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+
+import com.edgar.taskflow.auth.LoginAttemptService;
 
 @Service
 @RequiredArgsConstructor
@@ -37,16 +40,21 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final LoginAttemptService loginAttemptService;
+    private final LoginAlertService loginAlertService;
 
     private static final int MAX_SESSION_DAYS = 30;
     private static final int REFRESH_TOKEN_DAYS = 7;
     private static final int ACCESS_TOKEN_MINUTES = 15;
+    private static final int MAX_ACTIVE_SESSIONS = 5;
 
     // =========================================================
     // LOGIN
     // =========================================================
     @Transactional
-    public void login(LoginRequest request, HttpServletResponse response) {
+    public void login(LoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
 
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -55,6 +63,9 @@ public class AuthService {
                 )
         );
 
+        String ip = httpRequest.getRemoteAddr();
+        String userAgent = httpRequest.getHeader("User-Agent");
+        
         String username = authentication.getName();
 
         User user = userRepository.findByUsername(username)
@@ -66,6 +77,31 @@ public class AuthService {
         String tokenId = UUID.randomUUID().toString();
         String secret = UUID.randomUUID().toString();
         String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
+        
+        loginAlertService.checkSuspiciousLogin(user, ip, userAgent);
+        
+        if (loginAttemptService.isBlocked(request.getUsername())) {
+            throw new RuntimeException("Too many login attempts");
+        }
+        
+        List<RefreshToken> activeSessions =
+                refreshTokenRepository.findByUserAndRevokedFalse(user);
+
+        long rootSessions = activeSessions.stream()
+                .filter(t -> t.getParentToken() == null)
+                .count();
+
+        if (rootSessions >= MAX_ACTIVE_SESSIONS) {
+
+            RefreshToken oldestSession = activeSessions.stream()
+                    .filter(t -> t.getParentToken() == null)
+                    .min((a,b) -> a.getSessionStart().compareTo(b.getSessionStart()))
+                    .orElse(null);
+
+            if (oldestSession != null) {
+                revokeTokenFamily(oldestSession.getFamilyId());
+            }
+        }
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -77,6 +113,8 @@ public class AuthService {
                 .sessionStart(now)
                 .revoked(false)
                 .used(false)
+                .ipAddress(ip)
+                .userAgent(userAgent)
                 .user(user)
                 .build();
 
@@ -294,6 +332,8 @@ public class AuthService {
                         .familyId(token.getFamilyId())
                         .sessionStart(token.getSessionStart())
                         .expiryDate(token.getExpiryDate())
+                        .ipAddress(token.getIpAddress())
+                        .userAgent(token.getUserAgent())
                         .current(token.getFamilyId().equals(currentFamilyId))
                         .build()
                 )
