@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import com.edgar.taskflow.exception.ResourceNotFoundException;
 import com.edgar.taskflow.exception.InvalidTokenException;
@@ -99,6 +100,28 @@ public class AuthController {
 
         return ResponseEntity.ok(
                 authService.getActiveSessions(user, currentFamilyId)
+        );
+    }
+    
+    @DeleteMapping("/sessions/{familyId}")
+    public ResponseEntity<?> revokeSession(
+            @PathVariable String familyId,
+            HttpServletRequest request
+    ) {
+
+        String accessToken = extractAccessToken(request);
+
+        String username = jwtService.extractUsername(accessToken);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        authService.revokeSession(familyId, user);
+
+        return ResponseEntity.ok().body(
+                Map.of(
+                        "message", "Session revoked successfully"
+                )
         );
     }
     

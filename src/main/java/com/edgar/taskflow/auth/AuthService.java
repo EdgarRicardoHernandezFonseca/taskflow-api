@@ -251,6 +251,27 @@ public class AuthService {
                 )
                 .toList();
     }
+    
+    @Transactional
+    public void revokeSession(String familyId, User user) {
+
+        List<RefreshToken> tokens = refreshTokenRepository.findByFamilyId(familyId);
+
+        if (tokens.isEmpty()) {
+            throw new ResourceNotFoundException("Session not found");
+        }
+
+        // Validar que la sesión pertenezca al usuario
+        if (!tokens.get(0).getUser().getId().equals(user.getId())) {
+            throw new InvalidTokenException("Unauthorized session");
+        }
+
+        for (RefreshToken token : tokens) {
+            token.setRevoked(true);
+        }
+
+        refreshTokenRepository.saveAll(tokens);
+    }
 
     // =========================================================
     // HELPERS
