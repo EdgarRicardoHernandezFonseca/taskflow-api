@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -60,4 +61,7 @@ public class RefreshToken {
     private String userAgent;
     
     private String deviceFingerprint;
+    
+    @Transient
+    private String rawSecret;
 }

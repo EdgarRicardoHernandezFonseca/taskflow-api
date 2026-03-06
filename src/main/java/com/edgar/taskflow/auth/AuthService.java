@@ -56,92 +56,39 @@ public class AuthService {
     // =========================================================
     @Transactional
     public void login(LoginRequest request,
-            HttpServletRequest httpRequest,
-            HttpServletResponse response) {
+                      HttpServletRequest httpRequest,
+                      HttpServletResponse response) {
 
-        if (loginAttemptService.isBlocked(request.getUsername())) {
-            throw new RuntimeException("Too many login attempts. Try again later.");
-        }
-        
+        validateLoginAttempts(request.getUsername());
+
         String ip = httpRequest.getRemoteAddr();
         String userAgent = httpRequest.getHeader("User-Agent");
-        
-        String familyId = UUID.randomUUID().toString();
-        String tokenId = UUID.randomUUID().toString();
-        String secret = UUID.randomUUID().toString();
-        String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
-        
-        Authentication authentication;
-        
-        try {
 
-            authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-            );
+        Authentication authentication = authenticateUser(request);
 
-        } catch (Exception e) {
-
-            loginAttemptService.loginFailed(request.getUsername());
-
-            throw new RuntimeException("Invalid credentials");
-        }
-        
         String username = authentication.getName();
-        
+
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String accessToken = jwtService.generateToken(user);
-        
         loginAlertService.checkSuspiciousLogin(user, ip, userAgent);
-        
+
         loginAttemptService.loginSucceeded(username);
-        
-        List<RefreshToken> activeSessions =
-                refreshTokenRepository.findByUserAndRevokedFalse(user);
 
-        long rootSessions = activeSessions.stream()
-                .filter(t -> t.getParentToken() == null)
-                .count();
+        enforceSessionLimit(user);
 
-        if (rootSessions >= MAX_ACTIVE_SESSIONS) {
+        RefreshToken refreshToken = createRefreshToken(user, ip, userAgent);
 
-            RefreshToken oldestSession = activeSessions.stream()
-                    .filter(t -> t.getParentToken() == null)
-                    .min((a,b) -> a.getSessionStart().compareTo(b.getSessionStart()))
-                    .orElse(null);
-
-            if (oldestSession != null) {
-                revokeTokenFamily(oldestSession.getFamilyId());
-            }
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        
-        String fingerprint =
-                deviceFingerprintService.generateFingerprint(ip, userAgent);
-
-        RefreshToken refreshToken = RefreshToken.builder()
-                .tokenId(tokenId)
-                .tokenHash(hashedSecret)
-                .familyId(familyId)
-                .expiryDate(now.plusDays(REFRESH_TOKEN_DAYS))
-                .sessionStart(now)
-                .revoked(false)
-                .used(false)
-                .ipAddress(ip)
-                .userAgent(userAgent)
-                .user(user)
-                .deviceFingerprint(fingerprint)
-                .build();
-
-        refreshTokenRepository.save(refreshToken);
+        String accessToken = jwtService.generateToken(user);
 
         addAccessCookie(response, accessToken);
-        addRefreshCookie(response, tokenId, secret, REFRESH_TOKEN_DAYS * 24 * 60 * 60);
+
+        addRefreshCookie(
+                response,
+                refreshToken.getTokenId(),
+                refreshToken.getRawSecret(),
+                REFRESH_TOKEN_DAYS * 24 * 60 * 60
+        );
     }
 
     // =========================================================
@@ -417,5 +364,88 @@ public class AuthService {
         }
 
         return authHeader.substring(7);
+    }
+    
+    private void validateLoginAttempts(String username) {
+
+        if (loginAttemptService.isBlocked(username)) {
+            throw new RuntimeException("Too many login attempts. Try again later.");
+        }
+
+    }
+    
+    private Authentication authenticateUser(LoginRequest request) {
+
+        try {
+
+            return authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(),
+                            request.getPassword()
+                    )
+            );
+
+        } catch (Exception e) {
+
+            loginAttemptService.loginFailed(request.getUsername());
+
+            throw new RuntimeException("Invalid credentials");
+        }
+    }
+    
+    private void enforceSessionLimit(User user) {
+
+        List<RefreshToken> activeSessions =
+                refreshTokenRepository.findByUserAndRevokedFalse(user);
+
+        long rootSessions = activeSessions.stream()
+                .filter(t -> t.getParentToken() == null)
+                .count();
+
+        if (rootSessions >= MAX_ACTIVE_SESSIONS) {
+
+            RefreshToken oldestSession = activeSessions.stream()
+                    .filter(t -> t.getParentToken() == null)
+                    .min((a, b) -> a.getSessionStart().compareTo(b.getSessionStart()))
+                    .orElse(null);
+
+            if (oldestSession != null) {
+                revokeTokenFamily(oldestSession.getFamilyId());
+            }
+        }
+    }
+    
+    private RefreshToken createRefreshToken(User user, String ip, String userAgent) {
+
+        String familyId = UUID.randomUUID().toString();
+        String tokenId = UUID.randomUUID().toString();
+        String secret = UUID.randomUUID().toString();
+        String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
+
+        LocalDateTime now = LocalDateTime.now();
+
+        String fingerprint =
+                deviceFingerprintService.generateFingerprint(ip, userAgent);
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .tokenId(tokenId)
+                .tokenHash(hashedSecret)
+                .familyId(familyId)
+                .expiryDate(now.plusDays(REFRESH_TOKEN_DAYS))
+                .sessionStart(now)
+                .revoked(false)
+                .used(false)
+                .ipAddress(ip)
+                .userAgent(userAgent)
+                .deviceFingerprint(fingerprint)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+
+        // Guardamos temporalmente el secret para cookie
+        refreshToken.setRawSecret(secret);
+
+        return refreshToken;
     }
 }
