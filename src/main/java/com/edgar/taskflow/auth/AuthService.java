@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,6 +21,7 @@ import com.edgar.taskflow.exception.ReuseTokenException;
 import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.security.BlacklistedToken;
 import com.edgar.taskflow.security.BlacklistedTokenRepository;
+import com.edgar.taskflow.security.DeviceFingerprintService;
 import com.edgar.taskflow.security.JwtService;
 import com.edgar.taskflow.security.LoginAlertService;
 
@@ -29,7 +31,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
-import com.edgar.taskflow.auth.LoginAttemptService;
+import com.edgar.taskflow.security.LoginAttemptService;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +44,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final LoginAttemptService loginAttemptService;
     private final LoginAlertService loginAlertService;
-
+    private final DeviceFingerprintService deviceFingerprintService;
+    
     private static final int MAX_SESSION_DAYS = 30;
     private static final int REFRESH_TOKEN_DAYS = 7;
     private static final int ACCESS_TOKEN_MINUTES = 15;
@@ -56,33 +59,46 @@ public class AuthService {
             HttpServletRequest httpRequest,
             HttpServletResponse response) {
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
-
+        if (loginAttemptService.isBlocked(request.getUsername())) {
+            throw new RuntimeException("Too many login attempts. Try again later.");
+        }
+        
         String ip = httpRequest.getRemoteAddr();
         String userAgent = httpRequest.getHeader("User-Agent");
         
-        String username = authentication.getName();
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        String accessToken = jwtService.generateToken(user);
-
         String familyId = UUID.randomUUID().toString();
         String tokenId = UUID.randomUUID().toString();
         String secret = UUID.randomUUID().toString();
         String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
         
+        Authentication authentication;
+        
+        try {
+
+            authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()
+                )
+            );
+
+        } catch (Exception e) {
+
+            loginAttemptService.loginFailed(request.getUsername());
+
+            throw new RuntimeException("Invalid credentials");
+        }
+        
+        String username = authentication.getName();
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        String accessToken = jwtService.generateToken(user);
+        
         loginAlertService.checkSuspiciousLogin(user, ip, userAgent);
         
-        if (loginAttemptService.isBlocked(request.getUsername())) {
-            throw new RuntimeException("Too many login attempts");
-        }
+        loginAttemptService.loginSucceeded(username);
         
         List<RefreshToken> activeSessions =
                 refreshTokenRepository.findByUserAndRevokedFalse(user);
@@ -104,6 +120,9 @@ public class AuthService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+        
+        String fingerprint =
+                deviceFingerprintService.generateFingerprint(ip, userAgent);
 
         RefreshToken refreshToken = RefreshToken.builder()
                 .tokenId(tokenId)
@@ -116,6 +135,7 @@ public class AuthService {
                 .ipAddress(ip)
                 .userAgent(userAgent)
                 .user(user)
+                .deviceFingerprint(fingerprint)
                 .build();
 
         refreshTokenRepository.save(refreshToken);

@@ -58,4 +58,6 @@ public class RefreshToken {
 
     @Column(length = 255)
     private String userAgent;
+    
+    private String deviceFingerprint;
 }

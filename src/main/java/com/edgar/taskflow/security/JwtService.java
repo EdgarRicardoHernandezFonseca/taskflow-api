@@ -9,11 +9,19 @@ import com.edgar.taskflow.entity.User;
 import java.security.Key;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Map;
 
 @Service
 public class JwtService {
 
 	private final String SECRET_KEY = "mysecretkeymysecretkeymysecretkey12345";
+	
+	private final Map<String, String> keys = Map.of(
+            "v1", "my-secret-key-1",
+            "v2", "my-secret-key-2"
+    );
+
+    private final String currentKeyId = "v2";
 
     private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 15;
 
