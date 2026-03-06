@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
@@ -267,9 +266,17 @@ public class AuthService {
     }
     
     @Transactional
-    public void revokeSession(String familyId, User user) {
+    public void revokeSession(String familyId, HttpServletRequest request) {
 
-        List<RefreshToken> tokens = refreshTokenRepository.findByFamilyId(familyId);
+        String accessToken = extractAccessToken(request);
+
+        String username = jwtService.extractUsername(accessToken);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        List<RefreshToken> tokens =
+                refreshTokenRepository.findByFamilyId(familyId);
 
         if (tokens.isEmpty()) {
             throw new ResourceNotFoundException("Session not found");

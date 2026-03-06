@@ -1,10 +1,9 @@
 package com.edgar.taskflow.auth;
 
 import com.edgar.taskflow.entity.User;
+import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
 import com.edgar.taskflow.entity.Role;
-import com.edgar.taskflow.repository.UserRepository;
-import com.edgar.taskflow.security.JwtService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,10 +17,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-import com.edgar.taskflow.exception.ResourceNotFoundException;
-import com.edgar.taskflow.exception.InvalidTokenException;
-import jakarta.servlet.http.Cookie;
-
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -30,8 +25,6 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
-    
-    private final JwtService jwtService;
     
     @PostMapping("/register")
     public String register(@RequestBody AuthRequest request) {
@@ -88,27 +81,10 @@ public class AuthController {
             HttpServletRequest request
     ) {
 
-        String accessToken = extractAccessToken(request);
+        authService.revokeSession(familyId, request);
 
-        String username = jwtService.extractUsername(accessToken);
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        authService.revokeSession(familyId, user);
-
-        return ResponseEntity.ok().body(
-                Map.of(
-                        "message", "Session revoked successfully"
-                )
+        return ResponseEntity.ok(
+                Map.of("message", "Session revoked successfully")
         );
-    }
-    
-    private String extractAccessToken(HttpServletRequest request) {
-        final String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new InvalidTokenException("No token provided");
-        }
-        return authHeader.substring(7);
     }
 }
