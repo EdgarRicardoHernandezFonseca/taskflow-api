@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
+import com.edgar.taskflow.auth.dto.DeviceInfo;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.exception.InvalidTokenException;
 import com.edgar.taskflow.exception.ResourceNotFoundException;
@@ -45,7 +46,6 @@ public class AuthService {
     private final LoginAttemptService loginAttemptService;
     private final LoginAlertService loginAlertService;
     private final DeviceFingerprintService deviceFingerprintService;
-    private final UserAgentParserService userAgentParserService;
     private final DeviceDetectorService deviceDetectorService;
     
     private static final int MAX_SESSION_DAYS = 30;
@@ -329,7 +329,7 @@ public class AuthService {
                         .expiryDate(token.getExpiryDate())
                         .ipAddress(token.getIpAddress())
                         .userAgent(token.getUserAgent())
-                        .current(!token.isUsed() && !token.isRevoked())
+                        .current(token.getFamilyId().equals(currentFamilyId))
                         .build()
                 )
                 .toList();
@@ -451,10 +451,7 @@ public class AuthService {
         String secret = UUID.randomUUID().toString();
         String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
         
-        //String deviceName = userAgentParserService.parseDeviceName(userAgent);
-        String browser = userAgentParserService.parseBrowser(userAgent);
-        
-        String device = deviceDetectorService.detectDevice(userAgent);
+        DeviceInfo deviceInfo = deviceDetectorService.detect(userAgent);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -465,8 +462,8 @@ public class AuthService {
                 .tokenId(tokenId)
                 .tokenHash(hashedSecret)
                 .familyId(familyId)
-                .deviceName(device)
-                .browser(browser)
+                .deviceName(deviceInfo.getDevice())
+                .browser(deviceInfo.getBrowser())
                 .expiryDate(now.plusDays(REFRESH_TOKEN_DAYS))
                 .sessionStart(now)
                 .revoked(false)

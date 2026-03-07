@@ -3,13 +3,15 @@ package com.edgar.taskflow.security.device;
 import eu.bitwalker.useragentutils.UserAgent;
 import org.springframework.stereotype.Service;
 
+import com.edgar.taskflow.auth.dto.DeviceInfo;
+
 @Service
 public class DeviceDetectorService {
 
-    public String detectDevice(String userAgentString) {
+    public DeviceInfo detect(String userAgentString) {
 
         if (userAgentString == null) {
-            return "Unknown Device";
+            return new DeviceInfo("Unknown Device", "Unknown", "Unknown");
         }
 
         UserAgent userAgent = UserAgent.parseUserAgentString(userAgentString);
@@ -17,6 +19,14 @@ public class DeviceDetectorService {
         String browser = userAgent.getBrowser().getName();
         String os = userAgent.getOperatingSystem().getName();
 
-        return os + " - " + browser;
+        String device;
+
+        if (userAgent.getOperatingSystem().isMobileDevice()) {
+            device = "Mobile";
+        } else {
+            device = "Desktop";
+        }
+
+        return new DeviceInfo(device, browser, os);
     }
 }
