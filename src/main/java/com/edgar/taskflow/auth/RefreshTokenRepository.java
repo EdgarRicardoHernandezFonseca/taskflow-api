@@ -1,5 +1,6 @@
 package com.edgar.taskflow.auth;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,4 +34,6 @@ public interface RefreshTokenRepository  extends JpaRepository<RefreshToken, Lon
     List<RefreshToken> findByUserAndRevokedFalse(User user);
     
     Optional<RefreshToken> findTopByUserOrderBySessionStartDesc(User user);
+    
+    void deleteByExpiryDateBefore(LocalDateTime time);
 }

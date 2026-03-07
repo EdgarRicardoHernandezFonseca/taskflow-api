@@ -64,4 +64,12 @@ public class RefreshToken {
     
     @Transient
     private String rawSecret;
+    
+    private String deviceName;
+    
+    private String deviceType;
+    
+    private String os;
+    
+    private String browser;
 }

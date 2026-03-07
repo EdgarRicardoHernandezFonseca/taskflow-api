@@ -44,6 +44,7 @@ public class AuthService {
     private final LoginAttemptService loginAttemptService;
     private final LoginAlertService loginAlertService;
     private final DeviceFingerprintService deviceFingerprintService;
+    private final UserAgentParserService userAgentParserService;
     
     private static final int MAX_SESSION_DAYS = 30;
     private static final int REFRESH_TOKEN_DAYS = 7;
@@ -230,6 +231,24 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         refreshTokenRepository.revokeAllByUser(user);
+    }
+    
+    @Transactional
+    public void logoutCurrentSession(HttpServletRequest request) {
+
+        String refreshRaw = extractCookie(request, "refresh_token");
+
+        if (refreshRaw == null || !refreshRaw.contains(".")) {
+            return;
+        }
+
+        String tokenId = refreshRaw.split("\\.")[0];
+
+        RefreshToken token = refreshTokenRepository
+                .findByTokenId(tokenId)
+                .orElseThrow(() -> new InvalidTokenException("Token not found"));
+
+        revokeTokenFamily(token.getFamilyId());
     }
     
     // =========================================================
@@ -423,11 +442,14 @@ public class AuthService {
     }
     
     private RefreshToken createRefreshToken(User user, String ip, String userAgent) {
-
+    	
         String familyId = UUID.randomUUID().toString();
         String tokenId = UUID.randomUUID().toString();
         String secret = UUID.randomUUID().toString();
         String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
+        
+        String deviceName = userAgentParserService.parseDeviceName(userAgent);
+        String browser = userAgentParserService.parseBrowser(userAgent);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -438,6 +460,8 @@ public class AuthService {
                 .tokenId(tokenId)
                 .tokenHash(hashedSecret)
                 .familyId(familyId)
+                .deviceName(deviceName)
+                .browser(browser)
                 .expiryDate(now.plusDays(REFRESH_TOKEN_DAYS))
                 .sessionStart(now)
                 .revoked(false)
