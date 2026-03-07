@@ -15,4 +15,7 @@ public class ActiveSessionResponse {
     private boolean current;
     private String ipAddress;
     private String userAgent;
+    private String deviceName;
+    private String browser;
+    private String location;
 }

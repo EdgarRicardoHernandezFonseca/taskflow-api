@@ -269,11 +269,11 @@ public class AuthService {
         // Obtener familyId desde refresh cookie
         String refreshRaw = extractCookie(request, "refresh_token");
         String currentFamilyId = null;
-
+        
         if (refreshRaw != null && refreshRaw.contains(".")) {
 
             String tokenId = refreshRaw.split("\\.")[0];
-
+           
             RefreshToken token = refreshTokenRepository
                     .findByTokenId(tokenId)
                     .orElse(null);
@@ -319,7 +319,7 @@ public class AuthService {
 
         List<RefreshToken> tokens =
                 refreshTokenRepository.findByUserAndRevokedFalse(user);
-
+        
         return tokens.stream()
                 .filter(token -> token.getParentToken() == null) 
                 // solo tokens raíz de cada sesión
@@ -330,6 +330,9 @@ public class AuthService {
                         .ipAddress(token.getIpAddress())
                         .userAgent(token.getUserAgent())
                         .current(token.getFamilyId().equals(currentFamilyId))
+                        .deviceName(token.getDeviceName())
+                        .browser(token.getBrowser())
+                        .location(token.getLocation())
                         .build()
                 )
                 .toList();
@@ -354,7 +357,7 @@ public class AuthService {
 
         Cookie cookie = new Cookie("refresh_token", tokenId + "." + secret);
         cookie.setHttpOnly(true);
-        cookie.setPath("/api/auth/refresh");
+        cookie.setPath("/api/auth");
         cookie.setMaxAge(maxAgeSeconds);
         response.addCookie(cookie);
     }

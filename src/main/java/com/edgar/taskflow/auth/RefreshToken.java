@@ -72,4 +72,6 @@ public class RefreshToken {
     private String os;
     
     private String browser;
+    
+    private String location;
 }
