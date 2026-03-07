@@ -31,6 +31,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import com.edgar.taskflow.security.LoginAttemptService;
+import com.edgar.taskflow.security.device.DeviceDetectorService;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +46,7 @@ public class AuthService {
     private final LoginAlertService loginAlertService;
     private final DeviceFingerprintService deviceFingerprintService;
     private final UserAgentParserService userAgentParserService;
+    private final DeviceDetectorService deviceDetectorService;
     
     private static final int MAX_SESSION_DAYS = 30;
     private static final int REFRESH_TOKEN_DAYS = 7;
@@ -115,7 +117,7 @@ public class AuthService {
                 .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
 
         LocalDateTime now = LocalDateTime.now();
-
+         
         // 1️⃣ REUSE DETECTION (CRÍTICO)
         if (storedToken.isUsed() || storedToken.getReplacedByToken() != null) {
             revokeTokenFamily(storedToken.getFamilyId());
@@ -327,7 +329,7 @@ public class AuthService {
                         .expiryDate(token.getExpiryDate())
                         .ipAddress(token.getIpAddress())
                         .userAgent(token.getUserAgent())
-                        .current(token.getFamilyId().equals(currentFamilyId))
+                        .current(!token.isUsed() && !token.isRevoked())
                         .build()
                 )
                 .toList();
@@ -368,7 +370,8 @@ public class AuthService {
         }
         return null;
     }
-
+     
+    @Transactional
     private void revokeTokenFamily(String familyId) {
 
         List<RefreshToken> familyTokens =
@@ -448,8 +451,10 @@ public class AuthService {
         String secret = UUID.randomUUID().toString();
         String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
         
-        String deviceName = userAgentParserService.parseDeviceName(userAgent);
+        //String deviceName = userAgentParserService.parseDeviceName(userAgent);
         String browser = userAgentParserService.parseBrowser(userAgent);
+        
+        String device = deviceDetectorService.detectDevice(userAgent);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -460,7 +465,7 @@ public class AuthService {
                 .tokenId(tokenId)
                 .tokenHash(hashedSecret)
                 .familyId(familyId)
-                .deviceName(deviceName)
+                .deviceName(device)
                 .browser(browser)
                 .expiryDate(now.plusDays(REFRESH_TOKEN_DAYS))
                 .sessionStart(now)
