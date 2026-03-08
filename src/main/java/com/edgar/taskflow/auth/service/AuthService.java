@@ -91,27 +91,12 @@ public class AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        List<RefreshToken> sessions =
-                refreshTokenRepository.findByUserAndRevokedFalse(user);
-
-        for (RefreshToken session : sessions) {
-
-            boolean suspicious =
-                    impossibleTravelService.isImpossibleTravel(
-                            session.getLocation(),
-                            currentLocation,
-                            session.getLastActivity()
-                    );
-
-            if (suspicious) {
-
-                revokeTokenFamily(session.getFamilyId());
-
-                throw new RuntimeException(
-                        "Impossible travel detected. Session revoked."
-                );
-            }
-        }
+        riskAnalysisService.analyzeLogin(
+                user,
+                ip,
+                currentLocation,
+                deviceDetectorService.detect(userAgent)
+        );
         
         
         loginAlertService.checkSuspiciousLogin(user, ip, userAgent);
@@ -120,7 +105,15 @@ public class AuthService {
 
         enforceSessionLimit(user);
 
-        RefreshToken refreshToken = createRefreshToken(user, ip, userAgent);
+        DeviceInfo deviceInfo = deviceDetectorService.detect(userAgent);
+
+        RefreshToken refreshToken =
+                refreshTokenService.createRefreshToken(
+                        user,
+                        deviceInfo,
+                        ip,
+                        userAgent
+                );
 
         String accessToken = jwtService.generateToken(user);
 
@@ -147,6 +140,7 @@ public class AuthService {
         }
 
         String[] parts = rawRefreshToken.split("\\.");
+
         if (parts.length != 2) {
             throw new InvalidTokenException("Invalid token format");
         }
@@ -157,101 +151,33 @@ public class AuthService {
         RefreshToken storedToken = refreshTokenRepository.findByTokenId(tokenId)
                 .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
 
-        LocalDateTime now = LocalDateTime.now();
-         
-        // 1️⃣ REUSE DETECTION (CRÍTICO)
-        if (storedToken.isUsed() || storedToken.getReplacedByToken() != null) {
-            revokeTokenFamily(storedToken.getFamilyId());
-            throw new ReuseTokenException("Refresh token reuse detected. Session revoked.");
-        }
+        reuseDetectionService.detectReuse(storedToken);
 
-        // 2️⃣ SECRET CHECK
         if (!BCrypt.checkpw(rawSecret, storedToken.getTokenHash())) {
             throw new InvalidTokenException("Invalid refresh token");
         }
 
-        // 3️⃣ REVOKED
         if (storedToken.isRevoked()) {
             throw new InvalidTokenException("Refresh token revoked");
         }
 
-        // 4️⃣ EXPIRED
-        if (storedToken.getExpiryDate().isBefore(now)) {
+        if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             revokeTokenFamily(storedToken.getFamilyId());
             throw new InvalidTokenException("Refresh token expired");
         }
 
-        // 5️⃣ MAX SESSION LIFETIME
-        if (storedToken.getSessionStart()
-                .plusDays(MAX_SESSION_DAYS)
-                .isBefore(now)) {
-
-            revokeTokenFamily(storedToken.getFamilyId());
-            throw new InvalidTokenException("Session expired. Please login again.");
-        }
-
-        // =====================================================
-        // ROTATION
-        // =====================================================
-
-        storedToken.setUsed(true);
-        storedToken.setLastActivity(LocalDateTime.now());
-
-        String newTokenId = UUID.randomUUID().toString();
-        String newSecret = UUID.randomUUID().toString();
-        String newHashed = BCrypt.hashpw(newSecret, BCrypt.gensalt());
-
-        LocalDateTime newExpiry = now.plusDays(REFRESH_TOKEN_DAYS);
-
-        LocalDateTime maxSessionExpiry =
-                storedToken.getSessionStart().plusDays(MAX_SESSION_DAYS);
-
-        if (newExpiry.isAfter(maxSessionExpiry)) {
-            newExpiry = maxSessionExpiry;
-        }
-
-        RefreshToken newToken = RefreshToken.builder()
-                .tokenId(newTokenId)
-                .tokenHash(newHashed)
-                .familyId(storedToken.getFamilyId())
-                .parentToken(storedToken)
-
-                .deviceName(storedToken.getDeviceName())
-                .browser(storedToken.getBrowser())
-                .deviceFingerprint(storedToken.getDeviceFingerprint())
-                .deviceType(storedToken.getDeviceType())
-                .os(storedToken.getOs())
-
-                .ipAddress(storedToken.getIpAddress())
-                .location(storedToken.getLocation())
-                .userAgent(storedToken.getUserAgent())
-
-                .sessionStart(storedToken.getSessionStart())
-                .lastActivity(LocalDateTime.now())
-
-                .expiryDate(newExpiry)
-                .revoked(false)
-                .used(false)
-
-                .user(storedToken.getUser())
-                .build();
-
-        refreshTokenRepository.save(newToken);
-
-        storedToken.setReplacedByToken(newToken);
-        refreshTokenRepository.save(storedToken);
-
-        // =====================================================
-        // NEW ACCESS TOKEN
-        // =====================================================
+        RefreshToken newToken = tokenRotationService.rotateToken(storedToken);
 
         String newAccessToken = jwtService.generateToken(storedToken.getUser());
 
-        long secondsUntilExpiry =
-                Duration.between(now, newExpiry).getSeconds();
-
         addAccessCookie(response, newAccessToken);
-        addRefreshCookie(response, newTokenId, newSecret, (int) secondsUntilExpiry);
+
+        addRefreshCookie(
+                response,
+                newToken.getTokenId(),
+                newToken.getRawSecret(),
+                REFRESH_TOKEN_DAYS * 24 * 60 * 60
+        );
     }
 
     // =========================================================
@@ -322,53 +248,14 @@ public class AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Obtener familyId desde refresh cookie
-        String refreshRaw = extractCookie(request, "refresh_token");
-        String currentFamilyId = null;
-        
-        if (refreshRaw != null && refreshRaw.contains(".")) {
-
-            String tokenId = refreshRaw.split("\\.")[0];
-           
-            RefreshToken token = refreshTokenRepository
-                    .findByTokenId(tokenId)
-                    .orElse(null);
-
-            if (token != null) {
-                currentFamilyId = token.getFamilyId();
-            }
-        }
-
-        return getActiveSessions(user, currentFamilyId);
+        return sessionService.getUserSessions(user);
     }
     
     @Transactional
-    public void revokeSession(String familyId, HttpServletRequest request) {
+    public void revokeSession(String familyId) {
 
-        String accessToken = extractAccessToken(request);
+        sessionService.revokeSession(familyId);
 
-        String username = jwtService.extractUsername(accessToken);
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        List<RefreshToken> tokens =
-                refreshTokenRepository.findByFamilyId(familyId);
-
-        if (tokens.isEmpty()) {
-            throw new ResourceNotFoundException("Session not found");
-        }
-
-        // Validar que la sesión pertenezca al usuario
-        if (!tokens.get(0).getUser().getId().equals(user.getId())) {
-            throw new InvalidTokenException("Unauthorized session");
-        }
-
-        for (RefreshToken token : tokens) {
-            token.setRevoked(true);
-        }
-
-        refreshTokenRepository.saveAll(tokens);
     }
     
     private List<ActiveSessionResponse> getActiveSessions(User user, String currentFamilyId) {
@@ -502,50 +389,5 @@ public class AuthService {
                 revokeTokenFamily(oldestSession.getFamilyId());
             }
         }
-    }
-    
-    private RefreshToken createRefreshToken(User user, String ip, String userAgent) {
-    	
-        String familyId = UUID.randomUUID().toString();
-        String tokenId = UUID.randomUUID().toString();
-        String secret = UUID.randomUUID().toString();
-        String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
-        
-        DeviceInfo deviceInfo = deviceDetectorService.detect(userAgent);
-        
-        String deviceType = userAgent.contains("Mobile")
-                ? "Mobile"
-                : "Desktop";
-
-        LocalDateTime now = LocalDateTime.now();
-
-        String fingerprint =
-                deviceFingerprintService.generateFingerprint(ip, userAgent);
-
-        RefreshToken refreshToken = RefreshToken.builder()
-                .tokenId(tokenId)
-                .tokenHash(hashedSecret)
-                .familyId(familyId)
-                .deviceName(deviceInfo.getDevice())
-                .deviceType(deviceType)
-                .browser(deviceInfo.getBrowser())
-                .expiryDate(now.plusDays(REFRESH_TOKEN_DAYS))
-                .lastActivity(now)
-                .sessionStart(now)
-                .revoked(false)
-                .used(false)
-                .ipAddress(ip)
-                .location(ip)
-                .userAgent(userAgent)
-                .deviceFingerprint(fingerprint)
-                .user(user)
-                .build();
-
-        refreshTokenRepository.save(refreshToken);
-
-        // Guardamos temporalmente el secret para cookie
-        refreshToken.setRawSecret(secret);
-
-        return refreshToken;
     }
 }
