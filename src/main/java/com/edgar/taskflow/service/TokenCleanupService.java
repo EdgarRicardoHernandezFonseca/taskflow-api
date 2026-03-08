@@ -1,9 +1,10 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.service;
 
 import java.time.LocalDateTime;
 
 import org.springframework.scheduling.annotation.Scheduled;
 
+import com.edgar.taskflow.repository.RefreshTokenRepository;
 import com.edgar.taskflow.security.BlacklistedTokenRepository;
 
 public class TokenCleanupService {

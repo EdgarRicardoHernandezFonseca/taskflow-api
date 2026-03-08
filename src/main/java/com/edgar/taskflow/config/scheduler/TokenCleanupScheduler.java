@@ -1,4 +1,4 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.config.scheduler;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;

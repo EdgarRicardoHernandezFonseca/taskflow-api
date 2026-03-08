@@ -1,4 +1,4 @@
-package com.edgar.taskflow.auth.dto;
+package com.edgar.taskflow.security.device;
 
 public class DeviceInfo {
 	

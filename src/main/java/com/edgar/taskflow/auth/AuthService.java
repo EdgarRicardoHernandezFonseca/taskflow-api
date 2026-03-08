@@ -12,12 +12,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
-import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
-import com.edgar.taskflow.auth.dto.DeviceInfo;
+import com.edgar.taskflow.auth.session.ActiveSessionResponse;
+import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.exception.InvalidTokenException;
 import com.edgar.taskflow.exception.ResourceNotFoundException;
 import com.edgar.taskflow.exception.ReuseTokenException;
+import com.edgar.taskflow.repository.RefreshTokenRepository;
 import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.security.BlacklistedToken;
 import com.edgar.taskflow.security.BlacklistedTokenRepository;
@@ -33,6 +34,8 @@ import lombok.RequiredArgsConstructor;
 
 import com.edgar.taskflow.security.LoginAttemptService;
 import com.edgar.taskflow.security.device.DeviceDetectorService;
+import com.edgar.taskflow.security.device.DeviceInfo;
+import com.edgar.taskflow.security.risk.ImpossibleTravelService;
 
 @Service
 @RequiredArgsConstructor
@@ -200,11 +203,24 @@ public class AuthService {
                 .tokenHash(newHashed)
                 .familyId(storedToken.getFamilyId())
                 .parentToken(storedToken)
-                .expiryDate(newExpiry)
-                .lastActivity(LocalDateTime.now())
+
+                .deviceName(storedToken.getDeviceName())
+                .browser(storedToken.getBrowser())
+                .deviceFingerprint(storedToken.getDeviceFingerprint())
+                .deviceType(storedToken.getDeviceType())
+                .os(storedToken.getOs())
+
+                .ipAddress(storedToken.getIpAddress())
+                .location(storedToken.getLocation())
+                .userAgent(storedToken.getUserAgent())
+
                 .sessionStart(storedToken.getSessionStart())
+                .lastActivity(LocalDateTime.now())
+
+                .expiryDate(newExpiry)
                 .revoked(false)
                 .used(false)
+
                 .user(storedToken.getUser())
                 .build();
 
@@ -484,6 +500,10 @@ public class AuthService {
         String hashedSecret = BCrypt.hashpw(secret, BCrypt.gensalt());
         
         DeviceInfo deviceInfo = deviceDetectorService.detect(userAgent);
+        
+        String deviceType = userAgent.contains("Mobile")
+                ? "Mobile"
+                : "Desktop";
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -495,6 +515,7 @@ public class AuthService {
                 .tokenHash(hashedSecret)
                 .familyId(familyId)
                 .deviceName(deviceInfo.getDevice())
+                .deviceType(deviceType)
                 .browser(deviceInfo.getBrowser())
                 .expiryDate(now.plusDays(REFRESH_TOKEN_DAYS))
                 .lastActivity(now)

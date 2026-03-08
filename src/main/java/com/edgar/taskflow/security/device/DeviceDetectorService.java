@@ -3,8 +3,6 @@ package com.edgar.taskflow.security.device;
 import eu.bitwalker.useragentutils.UserAgent;
 import org.springframework.stereotype.Service;
 
-import com.edgar.taskflow.auth.dto.DeviceInfo;
-
 @Service
 public class DeviceDetectorService {
 

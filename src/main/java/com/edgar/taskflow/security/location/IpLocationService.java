@@ -1,4 +1,4 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.security.location;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

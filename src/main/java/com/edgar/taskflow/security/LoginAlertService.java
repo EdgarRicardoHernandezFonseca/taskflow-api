@@ -4,9 +4,9 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
-import com.edgar.taskflow.auth.RefreshToken;
-import com.edgar.taskflow.auth.RefreshTokenRepository;
+import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.entity.User;
+import com.edgar.taskflow.repository.RefreshTokenRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

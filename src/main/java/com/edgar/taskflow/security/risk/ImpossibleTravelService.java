@@ -1,4 +1,4 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.security.risk;
 
 import java.time.Duration;
 import java.time.LocalDateTime;

@@ -1,8 +1,6 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.entity;
 
 import java.time.LocalDateTime;
-
-import com.edgar.taskflow.entity.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

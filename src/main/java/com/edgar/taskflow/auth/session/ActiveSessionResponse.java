@@ -1,4 +1,4 @@
-package com.edgar.taskflow.auth.dto;
+package com.edgar.taskflow.auth.session;
 
 import java.time.LocalDateTime;
 

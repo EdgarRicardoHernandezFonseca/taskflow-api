@@ -1,4 +1,4 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.entity.User;
 
 public interface RefreshTokenRepository  extends JpaRepository<RefreshToken, Long> {

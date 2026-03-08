@@ -2,7 +2,7 @@ package com.edgar.taskflow.auth;
 
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.repository.UserRepository;
-import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
+import com.edgar.taskflow.auth.session.ActiveSessionResponse;
 import com.edgar.taskflow.entity.Role;
 
 import jakarta.servlet.http.HttpServletRequest;
