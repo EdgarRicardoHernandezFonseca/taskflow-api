@@ -74,4 +74,6 @@ public class RefreshToken {
     private String browser;
     
     private String location;
+    
+    private LocalDateTime lastActivity;
 }

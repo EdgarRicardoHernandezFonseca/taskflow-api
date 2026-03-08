@@ -47,6 +47,7 @@ public class AuthService {
     private final LoginAlertService loginAlertService;
     private final DeviceFingerprintService deviceFingerprintService;
     private final DeviceDetectorService deviceDetectorService;
+    private final ImpossibleTravelService impossibleTravelService;
     
     private static final int MAX_SESSION_DAYS = 30;
     private static final int REFRESH_TOKEN_DAYS = 7;
@@ -65,14 +66,39 @@ public class AuthService {
 
         String ip = httpRequest.getRemoteAddr();
         String userAgent = httpRequest.getHeader("User-Agent");
-
+        
+        String currentLocation = ip;
+        
         Authentication authentication = authenticateUser(request);
-
+        
         String username = authentication.getName();
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        List<RefreshToken> sessions =
+                refreshTokenRepository.findByUserAndRevokedFalse(user);
+
+        for (RefreshToken session : sessions) {
+
+            boolean suspicious =
+                    impossibleTravelService.isImpossibleTravel(
+                            session.getLocation(),
+                            currentLocation,
+                            session.getLastActivity()
+                    );
+
+            if (suspicious) {
+
+                revokeTokenFamily(session.getFamilyId());
+
+                throw new RuntimeException(
+                        "Impossible travel detected. Session revoked."
+                );
+            }
+        }
+        
+        
         loginAlertService.checkSuspiciousLogin(user, ip, userAgent);
 
         loginAttemptService.loginSucceeded(username);
@@ -154,6 +180,7 @@ public class AuthService {
         // =====================================================
 
         storedToken.setUsed(true);
+        storedToken.setLastActivity(LocalDateTime.now());
 
         String newTokenId = UUID.randomUUID().toString();
         String newSecret = UUID.randomUUID().toString();
@@ -174,6 +201,7 @@ public class AuthService {
                 .familyId(storedToken.getFamilyId())
                 .parentToken(storedToken)
                 .expiryDate(newExpiry)
+                .lastActivity(LocalDateTime.now())
                 .sessionStart(storedToken.getSessionStart())
                 .revoked(false)
                 .used(false)
@@ -333,6 +361,7 @@ public class AuthService {
                         .deviceName(token.getDeviceName())
                         .browser(token.getBrowser())
                         .location(token.getLocation())
+                        .lastActivity(token.getLastActivity())
                         .build()
                 )
                 .toList();
@@ -468,10 +497,12 @@ public class AuthService {
                 .deviceName(deviceInfo.getDevice())
                 .browser(deviceInfo.getBrowser())
                 .expiryDate(now.plusDays(REFRESH_TOKEN_DAYS))
+                .lastActivity(now)
                 .sessionStart(now)
                 .revoked(false)
                 .used(false)
                 .ipAddress(ip)
+                .location(ip)
                 .userAgent(userAgent)
                 .deviceFingerprint(fingerprint)
                 .user(user)

@@ -18,4 +18,5 @@ public class ActiveSessionResponse {
     private String deviceName;
     private String browser;
     private String location;
+    private LocalDateTime lastActivity;
 }
