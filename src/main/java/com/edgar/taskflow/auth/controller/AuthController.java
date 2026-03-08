@@ -79,12 +79,9 @@ public class AuthController {
     }
     
     @DeleteMapping("/sessions/{familyId}")
-    public ResponseEntity<?> revokeSession(
-            @PathVariable String familyId,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<?> revokeSession(@PathVariable String familyId) {
 
-        authService.revokeSession(familyId, request);
+        authService.revokeSession(familyId);
 
         return ResponseEntity.ok(
                 Map.of("message", "Session revoked successfully")

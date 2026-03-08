@@ -1,6 +1,5 @@
 package com.edgar.taskflow.auth.service;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -23,7 +22,6 @@ import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.exception.InvalidTokenException;
 import com.edgar.taskflow.exception.ResourceNotFoundException;
-import com.edgar.taskflow.exception.ReuseTokenException;
 import com.edgar.taskflow.repository.RefreshTokenRepository;
 import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.security.BlacklistedToken;
@@ -166,8 +164,18 @@ public class AuthService {
             throw new InvalidTokenException("Refresh token expired");
         }
 
+        String secret = UUID.randomUUID().toString();
+        String hash = BCrypt.hashpw(secret, BCrypt.gensalt());
+        
         RefreshToken newToken = tokenRotationService.rotateToken(storedToken);
-
+        
+        if(newToken.getTokenHash()==null) {
+        	newToken.setTokenHash(hash);
+        }
+        if(newToken.getRawSecret()==null) {  
+        	newToken.setRawSecret(secret);
+        }	
+        	
         String newAccessToken = jwtService.generateToken(storedToken.getUser());
 
         addAccessCookie(response, newAccessToken);
@@ -258,30 +266,6 @@ public class AuthService {
 
     }
     
-    private List<ActiveSessionResponse> getActiveSessions(User user, String currentFamilyId) {
-
-        List<RefreshToken> tokens =
-                refreshTokenRepository.findByUserAndRevokedFalse(user);
-        
-        return tokens.stream()
-                .filter(token -> token.getParentToken() == null) 
-                // solo tokens raíz de cada sesión
-                .map(token -> ActiveSessionResponse.builder()
-                        .familyId(token.getFamilyId())
-                        .sessionStart(token.getSessionStart())
-                        .expiryDate(token.getExpiryDate())
-                        .ipAddress(token.getIpAddress())
-                        .userAgent(token.getUserAgent())
-                        .current(token.getFamilyId().equals(currentFamilyId))
-                        .deviceName(token.getDeviceName())
-                        .browser(token.getBrowser())
-                        .location(token.getLocation())
-                        .lastActivity(token.getLastActivity())
-                        .build()
-                )
-                .toList();
-    }
-
     // =========================================================
     // HELPERS
     // =========================================================
