@@ -5,6 +5,8 @@ import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.repository.RefreshTokenRepository;
 import com.edgar.taskflow.security.device.DeviceInfo;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,14 +18,23 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
 
-    public RefreshToken createRefreshToken(User user,
-                                           DeviceInfo device,
-                                           String ip,
-                                           String userAgent) {
+    public RefreshToken createRefreshToken(
+            User user,
+            DeviceInfo device,
+            String ip,
+            String userAgent
+    ) {
+
+        String secret = UUID.randomUUID().toString();
+
+        String hash = BCrypt.hashpw(secret, BCrypt.gensalt());
 
         RefreshToken token = new RefreshToken();
 
         token.setTokenId(UUID.randomUUID().toString());
+        token.setTokenHash(hash);
+        token.setRawSecret(secret);
+
         token.setFamilyId(UUID.randomUUID().toString());
 
         token.setUser(user);
@@ -37,6 +48,7 @@ public class RefreshTokenService {
 
         token.setSessionStart(LocalDateTime.now());
         token.setLastActivity(LocalDateTime.now());
+
         token.setExpiryDate(LocalDateTime.now().plusDays(7));
 
         token.setRevoked(false);

@@ -3,6 +3,8 @@ package com.edgar.taskflow.auth.token;
 import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,9 +21,15 @@ public class TokenRotationService {
         oldToken.setUsed(true);
         refreshTokenRepository.save(oldToken);
 
+        String secret = UUID.randomUUID().toString();
+        String hash = BCrypt.hashpw(secret, BCrypt.gensalt());
+
         RefreshToken newToken = new RefreshToken();
 
         newToken.setTokenId(UUID.randomUUID().toString());
+        newToken.setTokenHash(hash);
+        newToken.setRawSecret(secret);
+
         newToken.setFamilyId(oldToken.getFamilyId());
 
         newToken.setParentToken(oldToken);

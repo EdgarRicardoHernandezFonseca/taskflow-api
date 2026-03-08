@@ -3,7 +3,6 @@ package com.edgar.taskflow.auth.service;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -164,17 +163,7 @@ public class AuthService {
             throw new InvalidTokenException("Refresh token expired");
         }
 
-        String secret = UUID.randomUUID().toString();
-        String hash = BCrypt.hashpw(secret, BCrypt.gensalt());
-        
         RefreshToken newToken = tokenRotationService.rotateToken(storedToken);
-        
-        if(newToken.getTokenHash()==null) {
-        	newToken.setTokenHash(hash);
-        }
-        if(newToken.getRawSecret()==null) {  
-        	newToken.setRawSecret(secret);
-        }	
         	
         String newAccessToken = jwtService.generateToken(storedToken.getUser());
 
