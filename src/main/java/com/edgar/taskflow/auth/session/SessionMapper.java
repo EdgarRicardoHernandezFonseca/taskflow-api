@@ -6,16 +6,20 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SessionMapper {
-	
-	 public ActiveSessionResponse toResponse(RefreshToken token) {
 
-	        ActiveSessionResponse response = new ActiveSessionResponse();
+    public ActiveSessionResponse toResponse(RefreshToken token) {
 
-	        response.setDeviceName(token.getDeviceName());
-	        response.setBrowser(token.getBrowser());
-	        response.setLocation(token.getLocation());
-	        response.setLastActivity(token.getLastActivity());
-
-	        return response;
-	    }
+        return ActiveSessionResponse.builder()
+                .familyId(token.getFamilyId())
+                .sessionStart(token.getSessionStart())
+                .expiryDate(token.getExpiryDate())
+                .current(false)
+                .ipAddress(token.getIpAddress())
+                .userAgent(token.getUserAgent())
+                .deviceName(token.getDeviceName())
+                .browser(token.getBrowser())
+                .location(token.getLocation())
+                .lastActivity(token.getLastActivity())
+                .build();
+    }
 }

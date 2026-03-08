@@ -14,6 +14,11 @@ import org.springframework.stereotype.Service;
 
 import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
 import com.edgar.taskflow.auth.dto.LoginRequest;
+import com.edgar.taskflow.auth.session.SessionService;
+import com.edgar.taskflow.auth.token.RefreshTokenService;
+import com.edgar.taskflow.auth.token.TokenReuseDetectionService;
+import com.edgar.taskflow.auth.token.TokenRotationService;
+import com.edgar.taskflow.auth.token.risk.RiskAnalysisService;
 import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.exception.InvalidTokenException;
@@ -41,6 +46,12 @@ import com.edgar.taskflow.security.risk.ImpossibleTravelService;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+	
+	private final RefreshTokenService refreshTokenService;
+	private final TokenRotationService tokenRotationService;
+	private final TokenReuseDetectionService reuseDetectionService;
+	private final SessionService sessionService;
+	private final RiskAnalysisService riskAnalysisService;
 
     private final BlacklistedTokenRepository blacklistedTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;

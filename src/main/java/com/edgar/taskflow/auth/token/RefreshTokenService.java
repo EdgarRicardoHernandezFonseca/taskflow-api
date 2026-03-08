@@ -14,7 +14,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RefreshTokenService {
 
-	private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public RefreshToken createRefreshToken(User user,
                                            DeviceInfo device,
@@ -23,12 +23,13 @@ public class RefreshTokenService {
 
         RefreshToken token = new RefreshToken();
 
-        token.setTokenId(UUID.randomUUID());
-        token.setFamilyId(UUID.randomUUID());
+        token.setTokenId(UUID.randomUUID().toString());
+        token.setFamilyId(UUID.randomUUID().toString());
+
         token.setUser(user);
 
         token.setBrowser(device.getBrowser());
-        token.setDeviceName(device.getDeviceName());
+        token.setDeviceName(device.getDevice());
         token.setOs(device.getOs());
 
         token.setIpAddress(ip);

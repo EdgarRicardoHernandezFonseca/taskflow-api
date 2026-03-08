@@ -11,8 +11,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class TokenRotationService {
-	
-	private final RefreshTokenRepository refreshTokenRepository;
+
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public RefreshToken rotateToken(RefreshToken oldToken) {
 
@@ -21,9 +21,11 @@ public class TokenRotationService {
 
         RefreshToken newToken = new RefreshToken();
 
-        newToken.setTokenId(UUID.randomUUID());
+        newToken.setTokenId(UUID.randomUUID().toString());
         newToken.setFamilyId(oldToken.getFamilyId());
-        newToken.setParentTokenId(oldToken.getTokenId());
+
+        newToken.setParentToken(oldToken);
+        oldToken.setReplacedByToken(newToken);
 
         newToken.setUser(oldToken.getUser());
 
