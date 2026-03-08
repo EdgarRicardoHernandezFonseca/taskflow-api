@@ -1,4 +1,4 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.auth.service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -12,7 +12,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
-import com.edgar.taskflow.auth.session.ActiveSessionResponse;
+import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
+import com.edgar.taskflow.auth.dto.LoginRequest;
 import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.exception.InvalidTokenException;

@@ -1,8 +1,11 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.auth.controller;
 
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.repository.UserRepository;
-import com.edgar.taskflow.auth.session.ActiveSessionResponse;
+import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
+import com.edgar.taskflow.auth.dto.AuthRequest;
+import com.edgar.taskflow.auth.dto.LoginRequest;
+import com.edgar.taskflow.auth.service.AuthService;
 import com.edgar.taskflow.entity.Role;
 
 import jakarta.servlet.http.HttpServletRequest;

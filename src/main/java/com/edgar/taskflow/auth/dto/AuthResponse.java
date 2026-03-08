@@ -1,4 +1,4 @@
-package com.edgar.taskflow.auth;
+package com.edgar.taskflow.auth.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
