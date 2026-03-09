@@ -49,6 +49,7 @@ public class AuthService {
 	private final TokenReuseDetectionService reuseDetectionService;
 	private final SessionService sessionService;
 	private final RiskAnalysisService riskAnalysisService;
+	private final SecurityEventService securityEventService;
 
     private final BlacklistedTokenRepository blacklistedTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -125,6 +126,14 @@ public class AuthService {
                 refreshToken.getRawSecret(),
                 REFRESH_TOKEN_DAYS * 24 * 60 * 60
         );
+        
+        securityEventService.logEvent(
+                username,
+                "LOGIN_SUCCESS",
+                ip,
+                deviceInfo.getDevice(),
+                currentLocation
+        );
     }
 
     // =========================================================
@@ -190,6 +199,14 @@ public class AuthService {
                 newToken.getTokenId(),
                 newToken.getRawSecret(),
                 REFRESH_TOKEN_DAYS * 24 * 60 * 60
+        );
+        
+        securityEventService.logEvent(
+                storedToken.getUser().getUsername(),
+                "REFRESH_TOKEN_USED",
+                request.getRemoteAddr(),
+                storedToken.getDeviceName(),
+                storedToken.getLocation()
         );
     }
 

@@ -31,5 +31,6 @@ public class User {
     private Role role;
 
     private LocalDateTime createdAt;
-
+    
+    private boolean mfaEnabled;
 }
