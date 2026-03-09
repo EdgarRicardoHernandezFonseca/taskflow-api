@@ -103,13 +103,16 @@ public class AuthService {
         enforceSessionLimit(user);
 
         DeviceInfo deviceInfo = deviceDetectorService.detect(userAgent);
+        
+        String fingerprint = deviceFingerprintService.generateFingerprint(httpRequest);
 
         RefreshToken refreshToken =
                 refreshTokenService.createRefreshToken(
                         user,
                         deviceInfo,
                         ip,
-                        userAgent
+                        userAgent,
+                        fingerprint
                 );
 
         String accessToken = jwtService.generateToken(user);
@@ -141,12 +144,25 @@ public class AuthService {
         if (parts.length != 2) {
             throw new InvalidTokenException("Invalid token format");
         }
-
+        
+        
         String tokenId = parts[0];
         String rawSecret = parts[1];
 
         RefreshToken storedToken = refreshTokenRepository.findByTokenId(tokenId)
                 .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
+        
+        String currentFingerprint =
+                deviceFingerprintService.generateFingerprint(request);
+
+        if(!currentFingerprint.equals(storedToken.getDeviceFingerprint())){
+
+            revokeTokenFamily(storedToken.getFamilyId());
+
+            throw new InvalidTokenException(
+                    "Device mismatch detected"
+            );
+        }
 
         reuseDetectionService.detectReuse(storedToken);
 

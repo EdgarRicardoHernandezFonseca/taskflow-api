@@ -22,11 +22,11 @@ public class RefreshTokenService {
             User user,
             DeviceInfo device,
             String ip,
-            String userAgent
+            String userAgent,
+            String fingerprint
     ) {
 
-        String secret = UUID.randomUUID().toString();
-
+    	String secret = UUID.randomUUID().toString();
         String hash = BCrypt.hashpw(secret, BCrypt.gensalt());
 
         RefreshToken token = new RefreshToken();
@@ -42,6 +42,8 @@ public class RefreshTokenService {
         token.setBrowser(device.getBrowser());
         token.setDeviceName(device.getDevice());
         token.setOs(device.getOs());
+
+        token.setDeviceFingerprint(fingerprint);
 
         token.setIpAddress(ip);
         token.setUserAgent(userAgent);

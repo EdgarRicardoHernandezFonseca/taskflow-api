@@ -1,23 +1,29 @@
 package com.edgar.taskflow.security;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.stereotype.Service;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
 
-import org.springframework.stereotype.Service;
-
 @Service
 public class DeviceFingerprintService {
-	
-	public String generateFingerprint(String ip, String userAgent) {
+
+    public String generateFingerprint(HttpServletRequest request) {
+
+        String userAgent = request.getHeader("User-Agent");
+        String ip = request.getRemoteAddr();
+
+        String rawFingerprint = userAgent + "|" + ip;
 
         try {
 
-            String raw = ip + ":" + userAgent;
-
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-            byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+            byte[] hash = digest.digest(
+                    rawFingerprint.getBytes(StandardCharsets.UTF_8)
+            );
 
             return Base64.getEncoder().encodeToString(hash);
 
@@ -25,5 +31,4 @@ public class DeviceFingerprintService {
             throw new RuntimeException("Fingerprint generation failed");
         }
     }
-
 }
