@@ -149,19 +149,24 @@ This project implements a production-style authentication system including:
 
 It shows the main components of the backend.
 
+<img width="2949" height="1857" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/a9ee356c-af58-493a-9f3a-b10fa2966273" />
 
 
 2️⃣  Authentication flow (Login)
 
 Complete login process.
 
+<img width="2932" height="1422" alt="mermaid-diagram (1)" src="https://github.com/user-attachments/assets/5199879c-100a-4d86-9cd1-58b20e5e4aef" />
 
 
 3️⃣ Refresh Token Rotation Flow
 
+<img width="2500" height="1422" alt="mermaid-diagram (2)" src="https://github.com/user-attachments/assets/cc781340-01af-4167-86bd-2f479c6effeb" />
 
 
 4️⃣ Attack flow detected (Token Reuse)
+
+<img width="1786" height="1098" alt="mermaid-diagram (3)" src="https://github.com/user-attachments/assets/9cd76c91-4bb8-4142-b937-3a90f364fec4" />
 
 
 
