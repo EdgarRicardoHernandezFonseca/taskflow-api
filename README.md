@@ -4,14 +4,23 @@ TasksFlow is a RESTful API built with **Java and Spring Boot** that allows users
 
 The project includes **user authentication using JWT**, task management features, and a clean layered architecture following backend development best practices.
 
-This project demonstrates backend engineering skills in **API development, authentication, security, and database integration**.
+This project demonstrates backend engineering skills in:
+
+- API development
+- Authentication and security
+- Backend architecture
+- Database integration
 
 ---
 
-## 🚀 Features
+# 🚀 Features
 
 - User registration
 - Secure authentication using **JWT**
+- Refresh Token Rotation
+- Token Reuse Detection
+- Device-bound Refresh Tokens
+- Impossible Travel Detection
 - Task management (CRUD operations)
 - Tasks associated with authenticated users
 - Input validation
@@ -20,7 +29,7 @@ This project demonstrates backend engineering skills in **API development, authe
 
 ---
 
-## 🛠 Tech Stack
+# 🛠 Tech Stack
 
 - **Java 17**
 - **Spring Boot**
@@ -40,9 +49,10 @@ Optional:
 
 ---
 
-## 📂 Project Structure
+# 📂 Project Structure
 
-The application follows a typical **layered architecture** used in professional Spring Boot applications.
+The application follows a **layered architecture** commonly used in professional Spring Boot applications.
+
 
 src/main/java/com/tasksflow
 
@@ -55,34 +65,39 @@ security → JWT authentication and security configuration
 config → Application configuration
 exception → Global error handling
 
+
 ---
 
-## 🔐 Authentication Flow
+# 🔐 Authentication Flow
 
 The API uses **JWT authentication**.
 
-1. User registers an account
-2. User logs in with credentials
-3. Server generates a **JWT token**
-4. Client sends the token in every request
+1️⃣ User registers an account  
+2️⃣ User logs in with credentials  
+3️⃣ Server generates a **JWT access token and refresh token**  
+4️⃣ Client sends the access token in every request  
 
-Example header:
+Example request header:
+
+
 Authorization: Bearer <JWT_TOKEN>
+
 
 ---
 
-## 📡 API Endpoints
+# 📡 API Endpoints
 
-### Authentication
+## Authentication
 
 | Method | Endpoint | Description |
 |------|------|------|
 | POST | /auth/register | Register a new user |
 | POST | /auth/login | Authenticate user |
+| POST | /auth/refresh | Refresh access token |
 
 ---
 
-### Tasks
+## Tasks
 
 | Method | Endpoint | Description |
 |------|------|------|
@@ -94,90 +109,42 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
-## ⚙️ Running the Project
+# Taskflow Architecture Diagrams
 
-Clone the repository:
+1️⃣ Authentication System Architecture
 
-```bash
-git clone https://github.com/yourusername/tasksflow.git
-cd tasksflow
+This diagram shows the main backend components involved in authentication and security.
 
-Build the project:
-mvn clean install
+<p align="center"> <img src="https://github.com/user-attachments/assets/a9ee356c-af58-493a-9f3a-b10fa2966273" width="900"/> </p>
+2️⃣ Authentication Flow (Login)
 
-Run the application:
-mvn spring-boot:run
+Complete login process from the client request to token generation.
 
-The API will start at:
-http://localhost:8080
-
-🧪 Running Tests
-mvn test
-
-🐳 Docker (Optional)
-
-Build the image:
-docker build -t tasksflow .
-
-Run the container:
-docker run -p 8080:8080 tasksflow
-
-📘 API Documentation
-
-Swagger/OpenAPI can be integrated for interactive documentation.
-
-Example endpoint:
-http://localhost:8080/swagger-ui.html
-
-
-
-## Authentication Architecture
-
-This project implements a production-style authentication system including:
-
-- JWT Access Tokens
-- Refresh Token Rotation
-- Token Reuse Detection
-- Device-bound Refresh Tokens
-- Impossible Travel Detection
-- Session Management
-- Security Event Logging
-
-### Architecture Diagram
-
-1️⃣  Authentication system architecture diagram
-
-It shows the main components of the backend.
-
-<img width="2949" height="1857" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/a9ee356c-af58-493a-9f3a-b10fa2966273" />
-
-
-2️⃣  Authentication flow (Login)
-
-Complete login process.
-
-<img width="2932" height="1422" alt="mermaid-diagram (1)" src="https://github.com/user-attachments/assets/5199879c-100a-4d86-9cd1-58b20e5e4aef" />
-
-
+<p align="center"> <img src="https://github.com/user-attachments/assets/5199879c-100a-4d86-9cd1-58b20e5e4aef" width="900"/> </p>
 3️⃣ Refresh Token Rotation Flow
 
-<img width="2500" height="1422" alt="mermaid-diagram (2)" src="https://github.com/user-attachments/assets/cc781340-01af-4167-86bd-2f479c6effeb" />
+Illustrates how the system rotates refresh tokens to improve security.
 
+<p align="center"> <img src="https://github.com/user-attachments/assets/cc781340-01af-4167-86bd-2f479c6effeb" width="900"/> </p>
+4️⃣ Token Reuse Attack Detection
 
-4️⃣ Attack flow detected (Token Reuse)
+Shows how the system detects refresh token reuse attacks and revokes the token family.
 
-<img width="1786" height="1098" alt="mermaid-diagram (3)" src="https://github.com/user-attachments/assets/9cd76c91-4bb8-4142-b937-3a90f364fec4" />
+<p align="center"> <img src="https://github.com/user-attachments/assets/9cd76c91-4bb8-4142-b937-3a90f364fec4" width="900"/> </p>
 
+---
 
-
-👨‍💻 Author
+# 👨‍💻 Author
 
 Edgar Ricardo Hernández Fonseca
 
 Backend Developer
+
 Java | Spring Boot | REST APIs | AWS
 
-🎯 Purpose of the Project
+---
+
+# 🎯 Purpose of the Project
 
 This project was created to demonstrate backend development capabilities including:
 
@@ -187,18 +154,95 @@ Authentication and authorization
 
 Scalable backend architecture
 
-Database integration with Spring Data JPA
+Database integration using Spring Data JPA
 
 It can serve as a starting point for real-world task management systems or SaaS applications.
 
-## 💼 Freelance Services
+---
+
+# 💼 Freelance Services
 
 I can help you build or customize:
 
-- REST APIs with **Java and Spring Boot**
-- Authentication systems (**JWT / OAuth2**)
-- Backend architecture for **scalable applications**
-- Database design and integration
-- Microservices and cloud-ready backend systems
+REST APIs with Java and Spring Boot
+
+Authentication systems (JWT / OAuth2)
+
+Backend architecture for scalable applications
+
+Database design and integration
+
+Microservices and cloud-ready backend systems
 
 Feel free to contact me if you need a backend developer for your project.
+
+---
+
+# ⚙️ Running the Project
+
+Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/tasksflow.git
+cd tasksflow
+
+Build the project:
+
+mvn clean install
+
+
+Run the application:
+
+mvn spring-boot:run
+
+
+The API will start at:
+
+http://localhost:8080
+
+```mermaid
+
+🧪 Running Tests
+mvn test
+
+
+🐳 Docker (Optional)
+
+Build the image:
+
+docker build -t tasksflow .
+
+Run the container:
+
+docker run -p 8080:8080 tasksflow
+
+
+📘 API Documentation
+
+Swagger/OpenAPI can be integrated for interactive documentation.
+
+Example endpoint:
+
+http://localhost:8080/swagger-ui.html
+🏗 Authentication Architecture
+
+This project implements a production-style authentication system similar to systems used by companies like
+Auth0 and Okta.
+
+The authentication system includes:
+
+JWT Access Tokens
+
+Refresh Token Rotation
+
+Token Reuse Detection
+
+Device-bound Refresh Tokens
+
+Impossible Travel Detection
+
+Session Management
+
+Security Event Logging
+
+---
