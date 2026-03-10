@@ -129,6 +129,42 @@ Swagger/OpenAPI can be integrated for interactive documentation.
 Example endpoint:
 http://localhost:8080/swagger-ui.html
 
+
+
+## Authentication Architecture
+
+This project implements a production-style authentication system including:
+
+- JWT Access Tokens
+- Refresh Token Rotation
+- Token Reuse Detection
+- Device-bound Refresh Tokens
+- Impossible Travel Detection
+- Session Management
+- Security Event Logging
+
+### Architecture Diagram
+
+1️⃣  Authentication system architecture diagram
+
+It shows the main components of the backend.
+
+
+
+2️⃣  Authentication flow (Login)
+
+Complete login process.
+
+
+
+3️⃣ Refresh Token Rotation Flow
+
+
+
+4️⃣ Attack flow detected (Token Reuse)
+
+
+
 👨‍💻 Author
 
 Edgar Ricardo Hernández Fonseca
