@@ -21,27 +21,37 @@ public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        http
-            .csrf(csrf -> csrf.disable())
-            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            .authorizeHttpRequests(auth -> auth
-            		.requestMatchers("/api/auth/**").permitAll()
-            	    .requestMatchers("/h2-console/**").permitAll()
-            	    .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/tasks/**")
-            	        .hasRole("ADMIN")
-            	    .anyRequest().authenticated()
-            	)
-            .addFilterBefore(jwtAuthenticationFilter,
-                    UsernamePasswordAuthenticationFilter.class);
+	    http
+	        .csrf(csrf -> csrf.disable())
+	        .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+	        .sessionManagement(session ->
+	            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+	        )
+	        .authorizeHttpRequests(auth -> auth
+	                .requestMatchers(
+	                        "/api/auth/**",
+	                        "/h2-console/**",
 
-        return http.build();
-    }
+	                        // Swagger
+	                        "/swagger-ui.html",
+	                        "/swagger-ui/**",
+	                        "/v3/api-docs/**",
+	                        "/api-docs/**"
+	                ).permitAll()
+
+	                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/tasks/**")
+	                .hasRole("ADMIN")
+
+	                .anyRequest().authenticated()
+	        )
+	        .addFilterBefore(jwtAuthenticationFilter,
+	                UsernamePasswordAuthenticationFilter.class);
+
+	    return http.build();
+	}
 
     @Bean
     public org.springframework.security.crypto.password.PasswordEncoder passwordEncoder() {
