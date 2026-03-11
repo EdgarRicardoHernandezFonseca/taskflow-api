@@ -2,6 +2,12 @@ package com.edgar.taskflow.auth.controller;
 
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.repository.UserRepository;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
 import com.edgar.taskflow.auth.dto.AuthRequest;
 import com.edgar.taskflow.auth.dto.LoginRequest;
@@ -23,12 +29,18 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Authentication", description = "Authentication management APIs")
 public class AuthController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
     
+    @Operation(summary = "Register new user")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "User registered successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request data")
+    })
     @PostMapping("/register")
     public String register(@RequestBody AuthRequest request) {
 
@@ -45,6 +57,11 @@ public class AuthController {
         return "User registered successfully";
     }
 
+    @Operation(summary = "Authenticate user and return JWT tokens")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login successful"),
+            @ApiResponse(responseCode = "401", description = "Invalid credentials")
+    })
     @PostMapping("/login")
     public ResponseEntity<?> login(
             @RequestBody LoginRequest request,
@@ -56,6 +73,11 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Refresh access token")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+            @ApiResponse(responseCode = "401", description = "Invalid refresh token")
+    })
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(
             HttpServletRequest request,
@@ -65,12 +87,18 @@ public class AuthController {
         return ResponseEntity.ok("Token refreshed");
     }
 
+    @Operation(summary = "Logout current session")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Logout successful"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletRequest request) {
         authService.logoutCurrentSession(request);
         return ResponseEntity.ok("Logged out");
     }
     
+    @Operation(summary = "Get active sessions for current user")
     @GetMapping("/sessions")
     public ResponseEntity<List<ActiveSessionResponse>> getSessions(
             HttpServletRequest request
@@ -78,6 +106,7 @@ public class AuthController {
         return ResponseEntity.ok(authService.getSessions(request));
     }
     
+    @Operation(summary = "Revoke a specific session")
     @DeleteMapping("/sessions/{familyId}")
     public ResponseEntity<?> revokeSession(@PathVariable String familyId) {
 

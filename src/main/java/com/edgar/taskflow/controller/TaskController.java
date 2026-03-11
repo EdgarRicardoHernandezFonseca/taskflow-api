@@ -4,6 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import com.edgar.taskflow.service.TaskService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.edgar.taskflow.dto.TaskRequestDTO;
 import com.edgar.taskflow.dto.TaskResponseDTO;
 
@@ -19,15 +24,19 @@ import org.springframework.data.domain.Sort;
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
+@Tag(name = "Tasks", description = "Task management APIs")
+@SecurityRequirement(name = "bearerAuth")
 public class TaskController {
 	
 	private final TaskService taskService;
 	
+	@Operation(summary = "Create a new task")
 	@PostMapping
 	public TaskResponseDTO createTask(@Valid @RequestBody TaskRequestDTO request) {
         return taskService.createTask(request);
     }
 
+	@Operation(summary = "Get all tasks for authenticated user")
 	@GetMapping
 	public Page<TaskResponseDTO> getAllTasks(
 	        @RequestParam(defaultValue = "0") int page,
@@ -45,11 +54,13 @@ public class TaskController {
 	    return taskService.getTasks(pageable);
 	}
     
+	@Operation(summary = "Get task by ID")
     @GetMapping("/{id}")
     public ResponseEntity<TaskResponseDTO> getTaskById(@PathVariable Long id) {
         return ResponseEntity.ok(taskService.getTaskById(id));
     }
     
+	@Operation(summary = "Update a task")
     @PutMapping("/{id}")
     public ResponseEntity<TaskResponseDTO> updateTask(
             @PathVariable Long id,
@@ -58,6 +69,7 @@ public class TaskController {
         return ResponseEntity.ok(taskService.updateTask(id, request));
     }
     
+	@Operation(summary = "Delete a task")
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
