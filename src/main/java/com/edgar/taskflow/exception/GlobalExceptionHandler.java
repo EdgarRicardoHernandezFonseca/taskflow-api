@@ -49,15 +49,7 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request
     ) {
-     //   return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal error", request);
-    	
-    	ex.printStackTrace(); // IMPORTANTE
-
-        return buildResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                ex.getMessage(),
-                request
-        );
+       return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal error", request);
     }
 
     private ResponseEntity<?> buildResponse(
