@@ -16,9 +16,9 @@ public interface RefreshTokenRepository  extends JpaRepository<RefreshToken, Lon
 
 	List<RefreshToken> findByUser(User user);
 
-    @Modifying
-    @Query("UPDATE RefreshToken rt SET rt.revoked = true WHERE rt.user = :user")
-    void revokeAllByUser(@Param("user") User user);
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("UPDATE RefreshToken rt SET rt.revoked = true WHERE rt.user = :user")
+	void revokeAllByUser(@Param("user") User user);
 
     @Modifying
     @Query("UPDATE RefreshToken rt SET rt.revoked = true WHERE rt.familyId = :familyId")
