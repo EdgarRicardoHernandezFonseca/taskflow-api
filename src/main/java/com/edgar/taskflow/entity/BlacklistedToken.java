@@ -1,4 +1,4 @@
-package com.edgar.taskflow.security;
+package com.edgar.taskflow.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

@@ -2,6 +2,8 @@ package com.edgar.taskflow.security;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.edgar.taskflow.entity.BlacklistedToken;
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 
