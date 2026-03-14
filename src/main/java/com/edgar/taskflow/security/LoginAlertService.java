@@ -15,8 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class LoginAlertService {
-	
-	private final RefreshTokenRepository refreshTokenRepository;
+
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public void checkSuspiciousLogin(User user, String ip, String userAgent) {
 
@@ -57,5 +57,22 @@ public class LoginAlertService {
                     userAgent
             );
         }
+    }
+
+    // =====================================================
+    // GENERIC SECURITY ALERT (used by RiskAnalysisService)
+    // =====================================================
+
+    public void sendSecurityAlert(User user, String message) {
+
+        log.warn("""
+                ⚠️ Security alert detected
+
+                User: {}
+                Alert: {}
+                """,
+                user.getUsername(),
+                message
+        );
     }
 }
