@@ -41,10 +41,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
         
-        if(blacklistedTokenRepository.existsByToken(token)){
-            throw new RuntimeException("Token revoked");
-        }
-
         // 🔥 1️⃣ Verificar blacklist
         if (blacklistedTokenRepository.existsByToken(token)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
