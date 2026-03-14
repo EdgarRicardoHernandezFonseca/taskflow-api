@@ -5,6 +5,7 @@ import com.edgar.taskflow.dto.UserResponseDTO;
 import com.edgar.taskflow.entity.Role;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.repository.UserRepository;
+import com.edgar.taskflow.service.impl.UserServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

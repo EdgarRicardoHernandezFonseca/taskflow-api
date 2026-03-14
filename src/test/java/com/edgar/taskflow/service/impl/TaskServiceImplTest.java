@@ -7,6 +7,7 @@ import com.edgar.taskflow.entity.TaskStatus;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.repository.TaskRepository;
 import com.edgar.taskflow.repository.UserRepository;
+import com.edgar.taskflow.service.impl.TaskServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
