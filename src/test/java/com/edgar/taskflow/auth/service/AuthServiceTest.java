@@ -1,5 +1,6 @@
 package com.edgar.taskflow.auth.service;
 
+import com.edgar.taskflow.audit.service.SecurityEventService;
 import com.edgar.taskflow.auth.dto.LoginRequest;
 import com.edgar.taskflow.auth.session.SessionService;
 import com.edgar.taskflow.auth.token.RefreshTokenService;
@@ -9,11 +10,13 @@ import com.edgar.taskflow.auth.token.risk.RiskAnalysisService;
 import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.entity.Role;
 import com.edgar.taskflow.entity.User;
+import com.edgar.taskflow.repository.BlacklistedTokenRepository;
 import com.edgar.taskflow.repository.RefreshTokenRepository;
 import com.edgar.taskflow.repository.UserRepository;
 import com.edgar.taskflow.security.*;
 import com.edgar.taskflow.security.device.DeviceDetectorService;
 import com.edgar.taskflow.security.device.DeviceInfo;
+import com.edgar.taskflow.security.jwt.JwtService;
 import com.edgar.taskflow.security.risk.ImpossibleTravelService;
 
 import jakarta.servlet.http.Cookie;

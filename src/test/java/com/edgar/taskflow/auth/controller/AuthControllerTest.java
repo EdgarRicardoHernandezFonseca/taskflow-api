@@ -2,9 +2,9 @@ package com.edgar.taskflow.auth.controller;
 
 import com.edgar.taskflow.auth.dto.AuthRequest;
 import com.edgar.taskflow.auth.dto.LoginRequest;
+import com.edgar.taskflow.audit.service.SecurityEventService;
 import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
 import com.edgar.taskflow.auth.service.AuthService;
-import com.edgar.taskflow.auth.service.SecurityEventService;
 import com.edgar.taskflow.auth.session.SessionService;
 import com.edgar.taskflow.auth.token.RefreshTokenService;
 import com.edgar.taskflow.auth.token.TokenReuseDetectionService;
@@ -12,14 +12,14 @@ import com.edgar.taskflow.auth.token.TokenRotationService;
 import com.edgar.taskflow.auth.token.risk.RiskAnalysisService;
 import com.edgar.taskflow.entity.Role;
 import com.edgar.taskflow.entity.User;
+import com.edgar.taskflow.repository.BlacklistedTokenRepository;
 import com.edgar.taskflow.repository.RefreshTokenRepository;
 import com.edgar.taskflow.repository.UserRepository;
-import com.edgar.taskflow.security.BlacklistedTokenRepository;
 import com.edgar.taskflow.security.DeviceFingerprintService;
-import com.edgar.taskflow.security.JwtService;
 import com.edgar.taskflow.security.LoginAlertService;
 import com.edgar.taskflow.security.LoginAttemptService;
 import com.edgar.taskflow.security.device.DeviceDetectorService;
+import com.edgar.taskflow.security.jwt.JwtService;
 import com.edgar.taskflow.security.risk.ImpossibleTravelService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

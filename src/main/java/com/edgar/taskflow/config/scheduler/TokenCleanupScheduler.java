@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.edgar.taskflow.security.BlacklistedTokenRepository;
+import com.edgar.taskflow.repository.BlacklistedTokenRepository;
 
 import java.time.LocalDateTime;
 

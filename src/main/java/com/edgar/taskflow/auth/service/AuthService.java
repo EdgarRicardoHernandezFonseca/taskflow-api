@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
+import com.edgar.taskflow.audit.service.SecurityEventService;
 import com.edgar.taskflow.auth.dto.ActiveSessionResponse;
 import com.edgar.taskflow.auth.dto.LoginRequest;
 import com.edgar.taskflow.auth.session.SessionService;
@@ -22,11 +23,10 @@ import com.edgar.taskflow.entity.RefreshToken;
 import com.edgar.taskflow.entity.User;
 import com.edgar.taskflow.exception.InvalidTokenException;
 import com.edgar.taskflow.exception.ResourceNotFoundException;
+import com.edgar.taskflow.repository.BlacklistedTokenRepository;
 import com.edgar.taskflow.repository.RefreshTokenRepository;
 import com.edgar.taskflow.repository.UserRepository;
-import com.edgar.taskflow.security.BlacklistedTokenRepository;
 import com.edgar.taskflow.security.DeviceFingerprintService;
-import com.edgar.taskflow.security.JwtService;
 import com.edgar.taskflow.security.LoginAlertService;
 
 import jakarta.servlet.http.Cookie;
@@ -38,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 import com.edgar.taskflow.security.LoginAttemptService;
 import com.edgar.taskflow.security.device.DeviceDetectorService;
 import com.edgar.taskflow.security.device.DeviceInfo;
+import com.edgar.taskflow.security.jwt.JwtService;
 import com.edgar.taskflow.security.risk.ImpossibleTravelService;
 
 @Service
