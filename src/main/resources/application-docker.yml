@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/taskflow
+    username: taskflow
+    password: taskflow
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update   # (dev)
+    show-sql: true
+
+  h2:
+    console:
+      enabled: false
+
+server:
+  port: 8080
+  error:
+    include-stacktrace: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+logging:
+  level:
+    org.springdoc: DEBUG
+    org.springframework: INFO
+    org.springframework.web: DEBUG
